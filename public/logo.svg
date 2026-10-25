@@ -1,0 +1,255 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Dark Glossy Metal Gradient -->
+    <linearGradient id="bladeSpineGrad" x1="160" y1="180" x2="350" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#383838"/>
+      <stop offset="40%" stop-color="#181818"/>
+      <stop offset="70%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#222222"/>
+    </linearGradient>
+
+    <!-- Chrome Edge Reflection Gradient -->
+    <linearGradient id="bladeEdgeGrad" x1="180" y1="210" x2="300" y2="310" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="25%" stop-color="#94a3b8"/>
+      <stop offset="60%" stop-color="#475569"/>
+      <stop offset="90%" stop-color="#1e293b"/>
+    </linearGradient>
+
+    <!-- Glossy Fluid Black Gradient -->
+    <radialGradient id="fluidGloss" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#333333"/>
+      <stop offset="50%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </radialGradient>
+
+    <!-- Bevel Line Highlight -->
+    <linearGradient id="bevelLight" x1="170" y1="210" x2="310" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#a3a3a3" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#subtleGlow)">
+    <!-- ============================================== -->
+    <!-- OUTER CIRCULAR ORGANIC LIQUID RING (VENOM / FLUID) -->
+    <!-- ============================================== -->
+    <!-- Base outer ring fluid tendrils -->
+    <path d="M 256 50
+             C 320 48, 380 75, 418 120
+             C 432 136, 442 155, 448 178
+             C 453 198, 447 215, 440 230
+             C 432 248, 436 265, 444 285
+             C 455 315, 448 350, 428 380
+             C 398 424, 350 455, 296 463
+             C 255 469, 212 460, 175 440
+             C 145 423, 120 398, 102 368
+             C 85 338, 79 302, 82 268
+             C 85 235, 96 205, 90 175
+             C 84 148, 68 125, 78 98
+             C 88 72, 120 58, 146 54
+             C 178 49, 218 52, 256 50 Z"
+          fill="none"/>
+
+    <!-- Dynamic interlocking black liquid ring vines -->
+    <!-- Quadrant 1 (Top & Top-Right) -->
+    <path d="M 256 46
+             C 310 46, 362 70, 400 108
+             C 414 122, 427 138, 436 156
+             C 445 174, 439 190, 432 205
+             C 426 218, 423 232, 429 246
+             C 437 266, 434 282, 423 300
+             C 414 290, 410 274, 414 258
+             C 418 244, 418 232, 411 220
+             C 402 204, 404 186, 414 172
+             C 422 160, 418 144, 406 132
+             C 375 100, 332 80, 288 75
+             C 258 72, 226 76, 198 86
+             C 188 90, 180 82, 188 74
+             C 208 55, 232 46, 256 46 Z"
+          fill="url(#fluidGloss)"/>
+
+    <!-- Quadrant 2 (Right & Bottom-Right) -->
+    <path d="M 436 280
+             C 448 310, 442 344, 424 374
+             C 400 414, 358 444, 310 456
+             C 272 465, 230 460, 194 444
+             C 168 432, 144 414, 126 390
+             C 118 380, 126 370, 136 376
+             C 152 386, 170 398, 190 406
+             C 226 420, 268 424, 306 414
+             C 344 404, 378 380, 400 348
+             C 412 330, 418 310, 414 288
+             C 412 278, 428 268, 436 280 Z"
+          fill="url(#fluidGloss)"/>
+
+    <!-- Quadrant 3 (Bottom & Bottom-Left) -->
+    <path d="M 194 444
+             C 158 434, 126 410, 104 378
+             C 84 348, 76 312, 78 276
+             C 80 242, 92 210, 92 176
+             C 92 154, 82 136, 74 118
+             C 70 110, 80 102, 88 108
+             C 102 126, 114 146, 114 170
+             C 114 198, 102 226, 98 254
+             C 94 284, 102 316, 120 342
+             C 138 368, 166 388, 196 400
+             C 206 404, 204 420, 194 444 Z"
+          fill="url(#fluidGloss)"/>
+
+    <!-- Liquid Tendrils & Organic Splatters weaving through the circle -->
+    <path d="M 390 120 C 410 140, 430 170, 420 195 C 415 180, 400 160, 385 145 C 375 135, 380 125, 390 120 Z" fill="#000000"/>
+    <path d="M 445 220 C 460 235, 455 255, 440 260 C 435 250, 438 238, 445 220 Z" fill="#111111"/>
+    <path d="M 425 350 C 440 370, 430 395, 410 405 C 412 390, 418 375, 425 350 Z" fill="#050505"/>
+    <path d="M 340 445 C 355 462, 335 475, 315 470 C 325 460, 332 452, 340 445 Z" fill="#0a0a0a"/>
+    <path d="M 140 410 C 120 425, 105 405, 115 390 C 122 398, 130 405, 140 410 Z" fill="#050505"/>
+    <path d="M 75 290 C 60 275, 65 250, 80 245 C 76 260, 74 275, 75 290 Z" fill="#111111"/>
+    <path d="M 85 150 C 70 135, 85 110, 102 118 C 94 128, 88 138, 85 150 Z" fill="#000000"/>
+    <path d="M 210 60 C 225 45, 250 48, 255 62 C 240 60, 224 58, 210 60 Z" fill="#141414"/>
+
+    <!-- Inner Vine Tendrils curling inward into the void -->
+    <path d="M 120 220 C 135 230, 148 248, 142 265 C 136 250, 128 238, 120 220 Z" fill="#111111"/>
+    <path d="M 370 290 C 360 305, 345 320, 330 325 C 345 315, 360 302, 370 290 Z" fill="#0a0a0a"/>
+    <path d="M 380 180 C 370 195, 355 205, 340 210 C 355 200, 370 190, 380 180 Z" fill="#141414"/>
+
+    <!-- ============================================== -->
+    <!-- DIAGONAL STRAIGHT RAZOR (NAVALHA) -->
+    <!-- Angled precisely through center (top-right to bottom-left) -->
+    <!-- ============================================== -->
+
+    <!-- Razor Tang & Tail (A cauda curva da navalha - topo direito) -->
+    <path d="M 315 145
+             C 330 130, 350 115, 368 120
+             C 382 125, 386 142, 375 154
+             C 362 168, 345 178, 332 188
+             C 322 178, 318 160, 315 145 Z"
+          fill="url(#bladeSpineGrad)"/>
+
+    <!-- Tang Tail Highlight Curve -->
+    <path d="M 335 140
+             C 350 128, 365 124, 374 132
+             C 378 136, 374 144, 365 152"
+          stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Razor Scales / Handle (Cabo ergonômico preto brilhante) -->
+    <!-- Extends from center pivot down towards bottom-left (approx 45 deg) -->
+    <path d="M 310 185
+             C 295 210, 275 250, 248 295
+             C 225 335, 200 375, 172 405
+             C 158 420, 138 426, 124 416
+             C 112 406, 116 386, 128 368
+             C 152 334, 184 288, 218 240
+             C 246 200, 278 168, 305 162
+             C 312 168, 312 178, 310 185 Z"
+          fill="url(#fluidGloss)"/>
+
+    <!-- Handle Glossy Edge Specular Reflection (Brilho no cabo) -->
+    <path d="M 298 175
+             C 265 215, 230 265, 195 315
+             C 165 358, 140 395, 130 405"
+          stroke="#525252" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8"/>
+
+    <!-- Handle Bottom Cap / Spacer Tip -->
+    <path d="M 124 416
+             C 118 412, 115 402, 118 392
+             C 122 382, 132 376, 138 384
+             C 142 396, 136 410, 124 416 Z"
+          fill="#1c1917"/>
+
+    <!-- Razor Blade (A Lâmina reta de aço aberta para o lado superior-esquerdo) -->
+    <!-- Hollow Ground Blade Body -->
+    <path d="M 312 165
+             L 165 268
+             C 155 275, 145 272, 140 262
+             L 132 248
+             C 128 240, 132 230, 142 222
+             L 288 120
+             C 298 112, 310 118, 315 128
+             L 322 145
+             C 325 152, 320 160, 312 165 Z"
+          fill="url(#bladeSpineGrad)"/>
+
+    <!-- Blade Cutting Face & Bevel (Fio da lâmina com acabamento navalha afiada) -->
+    <path d="M 302 160
+             L 162 258
+             C 158 261, 154 260, 152 256
+             L 148 248
+             C 146 244, 148 240, 152 237
+             L 292 138
+             C 296 135, 300 136, 302 140
+             L 306 148
+             C 308 152, 306 157, 302 160 Z"
+          fill="url(#bladeEdgeGrad)"/>
+
+    <!-- Razor Blade Razor-Edge Silver Highlight Line (O corte espelhado) -->
+    <path d="M 152 256 L 302 152"
+          stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Razor Spine Dark Rib (Dorso robusto da lâmina) -->
+    <path d="M 142 222 L 288 120"
+          stroke="#000000" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M 146 225 L 285 125"
+          stroke="#737373" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+
+    <!-- Blade Hollow-Ground Shadow Groove -->
+    <path d="M 160 240 L 286 150"
+          stroke="#0a0a0a" stroke-width="3" opacity="0.85"/>
+
+    <!-- Pivot Pin (Parafuso de fixação entre lâmina e cabo) -->
+    <circle cx="308" cy="175" r="5" fill="#a3a3a3"/>
+    <circle cx="308" cy="175" r="3" fill="#171717"/>
+    <circle cx="307" cy="174" r="1.5" fill="#ffffff" opacity="0.8"/>
+
+    <!-- ============================================== -->
+    <!-- ORGANIC LIQUID TENDRILS WRAPPING THE RAZOR -->
+    <!-- (Connecting razor handle seamlessly into the circular vortex) -->
+    <!-- ============================================== -->
+    <!-- Vine wrapping over blade shoulder -->
+    <path d="M 315 158
+             C 325 170, 335 190, 325 205
+             C 318 200, 316 185, 312 172
+             C 310 165, 312 160, 315 158 Z"
+          fill="#050505"/>
+
+    <!-- Liquid tendril wrapping around mid-handle -->
+    <path d="M 230 270
+             C 245 260, 260 275, 252 290
+             C 240 300, 222 288, 230 270 Z"
+          fill="#111111"/>
+
+    <!-- Droplet & tendril crossing under blade to bottom ring -->
+    <path d="M 190 320
+             C 175 340, 160 360, 140 375
+             C 148 358, 168 335, 185 315
+             C 188 312, 192 315, 190 320 Z"
+          fill="#000000"/>
+
+    <!-- Splash tendril branching off handle into the ring -->
+    <path d="M 215 350
+             C 230 380, 250 405, 275 420
+             C 260 415, 240 395, 225 370
+             C 218 358, 212 352, 215 350 Z"
+          fill="url(#fluidGloss)"/>
+
+    <!-- Top-right splash connecting tang to circle -->
+    <path d="M 365 130
+             C 385 110, 405 105, 420 115
+             C 405 125, 388 135, 370 145
+             C 364 140, 362 134, 365 130 Z"
+          fill="#000000"/>
+
+    <!-- Micro droplets floating dynamically -->
+    <circle cx="210" cy="115" r="3.5" fill="#171717"/>
+    <circle cx="160" cy="160" r="2.5" fill="#171717"/>
+    <circle cx="370" cy="240" r="3" fill="#171717"/>
+    <circle cx="340" cy="360" r="4" fill="#0f0f0f"/>
+    <circle cx="170" cy="380" r="2.5" fill="#171717"/>
+    <circle cx="290" cy="445" r="3.5" fill="#171717"/>
+    <circle cx="435" cy="190" r="3" fill="#171717"/>
+  </g>
+</svg>

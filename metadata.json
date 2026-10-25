@@ -1,0 +1,8 @@
+{
+  "name": "IBarbear",
+  "description": "Sistema de gestão e agendamento para barbearias com cobrança integrada via PIX e Cartões de Crédito, controle de assinaturas e bloqueio por inadimplência.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

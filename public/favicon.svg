@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Favicon background circle for high contrast in all browser tabs (dark & light modes) -->
+  <circle cx="256" cy="256" r="248" fill="#ffffff" stroke="#e5e5e5" stroke-width="4"/>
+
+  <defs>
+    <linearGradient id="favBladeSpine" x1="160" y1="180" x2="350" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#383838"/>
+      <stop offset="50%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#1f1f1f"/>
+    </linearGradient>
+
+    <linearGradient id="favBladeEdge" x1="180" y1="210" x2="300" y2="310" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#cbd5e1"/>
+      <stop offset="70%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <radialGradient id="favFluidGloss" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="60%" stop-color="#0f0f0f"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Outer circular organic fluid ring -->
+  <path d="M 256 56
+           C 310 56, 362 78, 400 114
+           C 414 128, 427 144, 436 162
+           C 445 180, 439 196, 432 210
+           C 426 224, 423 238, 429 252
+           C 437 272, 434 288, 423 306
+           C 414 296, 410 280, 414 264
+           C 418 250, 418 238, 411 226
+           C 402 210, 404 192, 414 178
+           C 422 166, 418 150, 406 138
+           C 375 106, 332 86, 288 81
+           C 258 78, 226 82, 198 92
+           C 188 96, 180 88, 188 80
+           C 208 62, 232 56, 256 56 Z"
+        fill="url(#favFluidGloss)"/>
+
+  <path d="M 436 275
+           C 448 305, 442 340, 424 370
+           C 400 410, 358 438, 310 450
+           C 272 458, 230 454, 194 438
+           C 168 426, 144 408, 126 384
+           C 118 374, 126 364, 136 370
+           C 152 380, 170 392, 190 400
+           C 226 414, 268 418, 306 408
+           C 344 398, 378 374, 400 342
+           C 412 324, 418 304, 414 282
+           C 412 272, 428 262, 436 275 Z"
+        fill="url(#favFluidGloss)"/>
+
+  <path d="M 194 438
+           C 158 428, 126 404, 104 372
+           C 84 342, 76 306, 78 270
+           C 80 236, 92 204, 92 170
+           C 92 148, 82 130, 74 112
+           C 70 104, 80 96, 88 102
+           C 102 120, 114 140, 114 164
+           C 114 192, 102 220, 98 248
+           C 94 278, 102 310, 120 336
+           C 138 362, 166 382, 196 394
+           C 206 398, 204 414, 194 438 Z"
+        fill="url(#favFluidGloss)"/>
+
+  <!-- Liquid Tendrils and drips -->
+  <path d="M 390 125 C 410 145, 428 172, 418 195 C 412 180, 398 162, 385 148 Z" fill="#000000"/>
+  <path d="M 445 225 C 460 240, 455 258, 440 264 C 435 254, 438 242, 445 225 Z" fill="#0f0f0f"/>
+  <path d="M 425 352 C 440 372, 430 395, 410 405 C 412 390, 418 375, 425 352 Z" fill="#050505"/>
+  <path d="M 140 408 C 120 422, 105 402, 115 388 C 122 396, 130 402, 140 408 Z" fill="#050505"/>
+  <path d="M 85 152 C 70 137, 85 112, 102 120 C 94 130, 88 140, 85 152 Z" fill="#000000"/>
+
+  <!-- Razor Tang Tail (topo direito) -->
+  <path d="M 315 145
+           C 330 130, 350 115, 368 120
+           C 382 125, 386 142, 375 154
+           C 362 168, 345 178, 332 188
+           C 322 178, 318 160, 315 145 Z"
+        fill="url(#favBladeSpine)"/>
+
+  <!-- Razor Scales / Handle (Cabo) -->
+  <path d="M 310 185
+           C 295 210, 275 250, 248 295
+           C 225 335, 200 375, 172 405
+           C 158 420, 138 426, 124 416
+           C 112 406, 116 386, 128 368
+           C 152 334, 184 288, 218 240
+           C 246 200, 278 168, 305 162
+           C 312 168, 312 178, 310 185 Z"
+        fill="url(#favFluidGloss)"/>
+
+  <!-- Handle Highlight -->
+  <path d="M 298 175
+           C 265 215, 230 265, 195 315
+           C 165 358, 140 395, 130 405"
+        stroke="#666666" stroke-width="4" stroke-linecap="round" fill="none"/>
+
+  <!-- Razor Blade -->
+  <path d="M 312 165
+           L 165 268
+           C 155 275, 145 272, 140 262
+           L 132 248
+           C 128 240, 132 230, 142 222
+           L 288 120
+           C 298 112, 310 118, 315 128
+           L 322 145
+           C 325 152, 320 160, 312 165 Z"
+        fill="url(#favBladeSpine)"/>
+
+  <!-- Cutting edge bevel -->
+  <path d="M 302 160
+           L 162 258
+           C 158 261, 154 260, 152 256
+           L 148 248
+           C 146 244, 148 240, 152 237
+           L 292 138
+           C 296 135, 300 136, 302 140
+           L 306 148
+           C 308 152, 306 157, 302 160 Z"
+        fill="url(#favBladeEdge)"/>
+
+  <!-- Cutting Edge Chrome Line -->
+  <path d="M 152 256 L 302 152" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Blade Spine -->
+  <path d="M 142 222 L 288 120" stroke="#000000" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Pivot Pin -->
+  <circle cx="308" cy="175" r="5" fill="#e2e8f0"/>
+  <circle cx="308" cy="175" r="2.5" fill="#000000"/>
+</svg>

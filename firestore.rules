@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User profile documents
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Barbershop profile and settings
+    match /shops/{shopSlug} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Services catalog
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Barbers directory
+    match /barbers/{barberId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Products and inventory
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Customer Bookings
+    match /bookings/{bookingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // PIX Subscription Payments
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

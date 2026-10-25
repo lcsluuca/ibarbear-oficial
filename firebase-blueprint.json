@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered barbershop owners and managers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "shopSlug": { "type": "string" },
+        "subscriptionStatus": { "type": "string" },
+        "subscriptionPlan": { "type": "string" },
+        "subscriptionExpiresAt": { "type": "string" },
+        "lastPaymentId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "shopSlug"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "PIX subscription payments records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "shopSlug": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "amount": { "type": "number" },
+        "plan": { "type": "string", "enum": ["monthly", "yearly"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "expired"] },
+        "pixCode": { "type": "string" },
+        "pixQrCodeUrl": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "paidAt": { "type": "string" },
+        "expiresAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "amount", "plan", "status", "pixCode", "expiresAt"]
+    },
+    "BarberShop": {
+      "title": "BarberShop",
+      "description": "Barbershop profile and settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "tagline": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "instagram": { "type": "string" },
+        "hours": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "day": { "type": "string" },
+              "time": { "type": "string" }
+            }
+          }
+        },
+        "ownerId": { "type": "string" },
+        "showProductsOnBookingPage": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "slug"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Products sold by the barbershop with inventory tracking and visibility toggle",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopSlug": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "stockQuantity": { "type": "number" },
+        "minStockAlert": { "type": "number" },
+        "active": { "type": "boolean" },
+        "showInCatalog": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "shopSlug", "name", "price", "stockQuantity", "active", "showInCatalog"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Haircut, beard, or spa service provided by the shop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopSlug": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "description": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "shopSlug", "name", "price", "durationMinutes"]
+    },
+    "Barber": {
+      "title": "Barber",
+      "description": "Barber team member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopSlug": { "type": "string" },
+        "name": { "type": "string" },
+        "specialty": { "type": "string" },
+        "avatar": { "type": "string" },
+        "workingHours": { "type": "string" },
+        "phone": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "shopSlug", "name", "active"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Customer appointments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopSlug": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "servicePrice": { "type": "number" },
+        "barberId": { "type": "string" },
+        "barberName": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "done", "canceled"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "shopSlug", "serviceId", "barberId", "customerName", "customerPhone", "date", "time", "status"]
+    }
+  },
+  "firestore": {
+    "collections": {
+      "users": {
+        "path": "users/{userId}",
+        "entity": "User",
+        "description": "User profile records"
+      },
+      "shops": {
+        "path": "shops/{shopSlug}",
+        "entity": "BarberShop",
+        "description": "Barbershop documents keyed by slug"
+      },
+      "services": {
+        "path": "services/{serviceId}",
+        "entity": "Service",
+        "description": "Catalog of services"
+      },
+      "barbers": {
+        "path": "barbers/{barberId}",
+        "entity": "Barber",
+        "description": "Barbers directory"
+      },
+      "products": {
+        "path": "products/{productId}",
+        "entity": "Product",
+        "description": "Barbershop retail products and inventory items"
+      },
+      "bookings": {
+        "path": "bookings/{bookingId}",
+        "entity": "Booking",
+        "description": "Appointments scheduled by customers"
+      },
+      "payments": {
+        "path": "payments/{paymentId}",
+        "entity": "Payment",
+        "description": "PIX payment transactions and subscriptions"
+      }
+    }
+  }
+}
