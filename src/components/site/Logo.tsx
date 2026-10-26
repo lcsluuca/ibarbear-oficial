@@ -15,7 +15,7 @@ export const Logo: React.FC<LogoProps> = ({
   showText = true,
   size = 'md',
 }) => {
-  const iconPixelSize = size === 'lg' ? 36 : size === 'sm' ? 24 : 28;
+  const iconPixelSize = size === 'lg' ? 28 : size === 'sm' ? 18 : 22;
 
   return (
     <Link
@@ -26,13 +26,7 @@ export const Logo: React.FC<LogoProps> = ({
     >
       {/* Brand Icon Box */}
       <div
-        className={`flex items-center justify-center rounded-sm transition-all duration-200 group-hover:scale-105 ${
-          size === 'lg'
-            ? 'h-10 w-10'
-            : size === 'sm'
-            ? 'h-8 w-8'
-            : 'h-9 w-9'
-        } ${
+        className={`flex items-center justify-center rounded-sm p-1.5 transition-all duration-200 group-hover:scale-105 ${
           light
             ? 'bg-white text-black'
             : 'bg-black text-white shadow-xs'

@@ -99,10 +99,6 @@ export const HomePage: React.FC = () => {
       q: 'Quantos barbeiros e serviços posso cadastrar?',
       a: 'No plano Pro você tem agendamentos ilimitados, barbeiros ilimitados e catálogo de serviços ilimitado. Sua barbearia pode crescer sem custos extras.',
     },
-    {
-      q: 'Posso testar antes de assinar?',
-      a: 'Sim! Você pode explorar todo o painel de demonstração agora mesmo ou criar uma conta gratuita para testar com sua equipe.',
-    },
   ];
 
   const planFeatures = [
