@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
 import { Logo } from '../../components/site/Logo';
-import { CheckoutForm } from '../../components/common/CheckoutForm';
 import {
   getCurrentUser,
   PLAN_PRICING,
@@ -19,10 +16,8 @@ import {
   RefreshCw,
   CheckCircle2,
   Lock,
+  CreditCard,
 } from 'lucide-react';
-
-// Carrega a chave pública do Stripe
-const stripePromise = loadStripe((import.meta as any).env?.VITE_STRIPE_PUBLIC_KEY || '');
 
 export const PagamentoPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,8 +29,7 @@ export const PagamentoPage: React.FC = () => {
   const isSuccessRedirect = searchParams.get('success') === 'true';
 
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(initialPlan);
-  const [clientSecret, setClientSecret] = useState<string>('');
-  const [loadingIntent, setLoadingIntent] = useState<boolean>(true);
+  const [loadingPayment, setLoadingPayment] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(isSuccessRedirect);
 
   // Redireciona para o login se não estiver autenticado
@@ -45,48 +39,49 @@ export const PagamentoPage: React.FC = () => {
     }
   }, [user, navigate]);
 
-  // Se retornou do redirecionamento de sucesso do Stripe
+  // Se retornou do redirecionamento de sucesso
   useEffect(() => {
     if (isSuccessRedirect) {
       handleTriggerSuccess();
     }
   }, [isSuccessRedirect]);
 
-  // Cria a Payment Intent no servidor Node sempre que o plano selecionado muda
-  useEffect(() => {
-    if (!user || paymentSuccess) return;
+  // Função para criar a assinatura no Mercado Pago via PHP
+  const handleCheckoutMercadoPago = async () => {
+    if (!user) return;
+    setLoadingPayment(true);
 
-    let isMounted = true;
-    const fetchIntent = async () => {
-      setLoadingIntent(true);
-      try {
-        const planInfo = PLAN_PRICING[selectedPlan];
-        const res = await fetch('/api/create-payment-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: planInfo.priceCents,
-            paymentId: `USER-${user.id}-${selectedPlan}-${Date.now()}`,
-          }),
-        });
+    try {
+      const planInfo = PLAN_PRICING[selectedPlan];
+      // Valor em reais (calculado a partir de priceCents ou price)
+      const amountInReais = planInfo.priceCents / 100;
 
-        const data = await res.json();
-        if (isMounted && data.success && data.clientSecret) {
-          setClientSecret(data.clientSecret);
-        }
-      } catch (err) {
-        console.error('Erro ao gerar intenção de pagamento no Stripe:', err);
-      } finally {
-        if (isMounted) setLoadingIntent(false);
+      const response = await fetch('/api/criar-pagamento.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amountInReais,
+          email: user.email || 'comprador@email.com',
+          title: `Assinatura ${planInfo.name} - IBarbear`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.init_point) {
+        // Redireciona o usuário para o Checkout do Mercado Pago
+        window.location.href = data.init_point;
+      } else {
+        console.error('Erro retornado pela API:', data);
+        alert('Não foi possível gerar o link de pagamento. Tente novamente.');
       }
-    };
-
-    fetchIntent();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedPlan, user?.id, paymentSuccess]);
+    } catch (err) {
+      console.error('Erro ao conectar com a API PHP:', err);
+      alert('Erro ao processar requisição. Verifique a conexão.');
+    } finally {
+      setLoadingPayment(false);
+    }
+  };
 
   // Dispara animação de celebração e redirecionamento
   const handleTriggerSuccess = () => {
@@ -117,8 +112,8 @@ export const PagamentoPage: React.FC = () => {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Logo />
-            <span className="hidden sm:inline-block rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-indigo-700 border border-indigo-200/60">
-              Checkout Stripe Integrado
+            <span className="hidden sm:inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-emerald-700 border border-emerald-200/60">
+              Checkout Mercado Pago Integrado
             </span>
           </div>
 
@@ -165,7 +160,7 @@ export const PagamentoPage: React.FC = () => {
             <p className="mt-3 text-sm sm:text-base text-neutral-600 leading-relaxed">
               O pagamento no valor de{' '}
               <strong className="text-neutral-900">{currentPlanInfo.priceLabel}</strong> foi
-              confirmado via Stripe. O acesso ao seu painel profissional e à agenda online já está 100% liberado.
+              confirmado via Mercado Pago. O acesso ao seu painel profissional e à agenda online já está 100% liberado.
             </p>
 
             <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-left">
@@ -175,7 +170,7 @@ export const PagamentoPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-xs text-neutral-600 pt-2 pb-2 border-b border-neutral-200/70">
                 <span>Gateway:</span>
-                <span className="font-bold text-indigo-700">Stripe Payments</span>
+                <span className="font-bold text-emerald-700">Mercado Pago</span>
               </div>
               <div className="flex items-center justify-between text-xs text-neutral-600 pt-2 pb-2 border-b border-neutral-200/70">
                 <span>Status:</span>
@@ -202,15 +197,15 @@ export const PagamentoPage: React.FC = () => {
           /* Seleção de Plano e Checkout */
           <div className="space-y-8">
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3.5 py-1 text-xs font-bold text-indigo-800 mb-3 shadow-2xs">
-                <ShieldCheck className="h-4 w-4 text-indigo-600" />
-                <span>Processamento Seguro com Stripe • SSL 256-bit</span>
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-800 mb-3 shadow-2xs">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <span>Processamento Seguro com Mercado Pago • SSL 256-bit</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950 tracking-tight">
                 {isRenewal ? 'Renovação da Assinatura' : 'Ative sua Barbearia no IBarbear'}
               </h1>
               <p className="mt-2 text-sm text-neutral-600 max-w-xl mx-auto">
-                Escolha o plano ideal e pague com Stripe (Cartão de Crédito, PIX, Apple Pay e Google Pay).
+                Escolha o plano ideal e pague com Mercado Pago (PIX, Cartão de Crédito e Boleto).
               </p>
             </div>
 
@@ -293,38 +288,33 @@ export const PagamentoPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Container do Formulário Stripe */}
-            <div className="max-w-xl mx-auto rounded-2xl border border-neutral-200 bg-white p-6 sm:p-8 shadow-sm">
-              {loadingIntent || !clientSecret ? (
-                <div className="py-12 text-center text-neutral-500 space-y-3">
-                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-neutral-800" />
-                  <p className="text-sm font-medium">Carregando ambiente seguro do Stripe...</p>
-                </div>
-              ) : (
-                <Elements
-                  stripe={stripePromise}
-                  options={{
-                    clientSecret,
-                    appearance: {
-                      theme: 'stripe',
-                      variables: {
-                        colorPrimary: '#0a0a0a',
-                        borderRadius: '12px',
-                      },
-                      rules: {
-                        'Badge': {
-                          display: 'none',
-                        },
-                        '.Badge': {
-                          display: 'none',
-                        }
-                      },
-                    },
-                  }}
-                >
-                  <CheckoutForm priceLabel={currentPlanInfo.priceLabel} />
-                </Elements>
-              )}
+            {/* Ação do Checkout com Mercado Pago */}
+            <div className="max-w-xl mx-auto rounded-2xl border border-neutral-200 bg-white p-6 sm:p-8 shadow-sm text-center">
+              <h2 className="text-base font-bold text-neutral-900 mb-2">
+                Resumo da Assinatura
+              </h2>
+              <p className="text-xs text-neutral-500 mb-6">
+                Você será redirecionado para o ambiente seguro do Mercado Pago para concluir o pagamento via PIX ou Cartão de Crédito.
+              </p>
+
+              <button
+                type="button"
+                onClick={handleCheckoutMercadoPago}
+                disabled={loadingPayment}
+                className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {loadingPayment ? (
+                  <>
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                    <span>Iniciando Checkout Seguro...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-5 w-5" />
+                    <span>Pagar {currentPlanInfo.priceLabel} com Mercado Pago</span>
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Garantias de Segurança */}
@@ -347,7 +337,7 @@ export const PagamentoPage: React.FC = () => {
       </main>
 
       <footer className="border-t border-neutral-200/90 bg-white py-4 text-center text-xs text-neutral-500">
-        <p>© {new Date().getFullYear()} IBarbear SaaS • Processamento seguro Stripe.</p>
+        <p>© {new Date().getFullYear()} IBarbear SaaS • Processamento seguro Mercado Pago.</p>
       </footer>
     </div>
   );
