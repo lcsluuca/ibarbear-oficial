@@ -6,8 +6,7 @@ import {
   loginUser,
   registerUser,
   APP_CONFIG,
-  checkInfinitePayPaymentStatus,
-  verifyAndConfirmPayment,
+  confirmPixPayment,
 } from '../../lib/storage';
 import { AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -16,10 +15,7 @@ export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
 
-  const orderNsu = searchParams.get('order_nsu');
-  const transactionNsu = searchParams.get('transaction_nsu');
-  const slug = searchParams.get('slug');
-  const infinitePayRef = searchParams.get('infinitepay_ref');
+  const paymentRef = searchParams.get('ref') || searchParams.get('infinitepay_ref');
 
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
@@ -33,20 +29,10 @@ export const AuthPage: React.FC = () => {
   // Check if returning from Checkout
   useEffect(() => {
     const checkRedirectPayment = async () => {
-      if (orderNsu || transactionNsu || slug) {
-        const result = await checkInfinitePayPaymentStatus({
-          order_nsu: orderNsu || undefined,
-          transaction_nsu: transactionNsu || undefined,
-          slug: slug || undefined,
-        });
-
-        if (result.isApproved) {
-          setPaymentSuccessMsg('Pagamento aprovado com sucesso! Faça login para acessar seu painel.');
-        }
-      } else if (infinitePayRef) {
+      if (paymentRef) {
         try {
-          await verifyAndConfirmPayment(infinitePayRef);
-          setPaymentSuccessMsg('Pagamento aprovado com sucesso! Faça login para acessar seu painel.');
+          await confirmPixPayment(paymentRef);
+          setPaymentSuccessMsg('Pagamento aprovado com sucesso! Faça login para aceder ao seu painel.');
         } catch {
           // Safe
         }
@@ -54,7 +40,7 @@ export const AuthPage: React.FC = () => {
     };
 
     checkRedirectPayment();
-  }, [orderNsu, transactionNsu, slug, infinitePayRef]);
+  }, [paymentRef]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,12 +56,12 @@ export const AuthPage: React.FC = () => {
         }
 
         const { user } = await registerUser(name.trim(), email.trim(), shopName.trim(), password);
-        // Direct to PIX Payment checkout first to activate platform access
+        // Direct to payment checkout first to activate platform access
         navigate('/pagamento?plan=monthly', { replace: true });
       } else {
         // Sign in
         if (!email.trim() || !password.trim()) {
-          setErrorMsg('Por favor, informe seu e-mail e senha.');
+          setErrorMsg('Por favor, informe o seu e-mail e senha.');
           setLoading(false);
           return;
         }
@@ -111,8 +97,8 @@ export const AuthPage: React.FC = () => {
             </h1>
             <p className="mt-1 text-sm text-neutral-500">
               {mode === 'signin'
-                ? 'Entre para acessar o painel.'
-                : 'Crie sua conta para gerenciar sua barbearia.'}
+                ? 'Entre para aceder ao painel.'
+                : 'Crie a sua conta para gerir a sua barbearia.'}
             </p>
           </div>
 
@@ -148,7 +134,7 @@ export const AuthPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Success / Approved from InfinitePay */}
+          {/* Success / Approved Payment */}
           {paymentSuccessMsg && (
             <div className="mb-5 flex items-start gap-2.5 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
@@ -184,7 +170,7 @@ export const AuthPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                    Seu nome
+                    O seu nome
                   </label>
                   <input
                     type="text"

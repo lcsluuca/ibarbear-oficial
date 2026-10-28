@@ -6,7 +6,6 @@ import {
   getShop,
   logoutUser,
   getSubscriptionInfo,
-  simulateSubscriptionState,
 } from '../../lib/storage';
 import {
   Calendar,
@@ -19,17 +18,14 @@ import {
   X,
   Copy,
   Check,
-  PlusCircle,
   Home,
   CreditCard,
   AlertTriangle,
-  AlertOctagon,
   Zap,
   Lock,
   ArrowRight,
-  RefreshCw,
-  CheckCircle2,
   Package,
+  DollarSign,
 } from 'lucide-react';
 
 interface PanelShellProps {
@@ -66,9 +62,10 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
     { label: 'Serviços', href: '/painel/servicos', icon: Scissors },
     { label: 'Produtos & Estoque', href: '/painel/produtos', icon: Package },
     { label: 'Equipe', href: '/painel/equipe', icon: Users },
+    { label: 'Comissões', href: '/painel/comissoes', icon: DollarSign },
     { label: 'Minha loja', href: '/painel/loja', icon: Store },
     {
-      label: 'Assinatura & PIX',
+      label: 'Assinatura',
       href: '/painel/assinatura',
       icon: CreditCard,
       badge: subInfo.isExpired ? 'Vencido' : subInfo.isExpiringSoon ? 'Expira logo' : undefined,
@@ -281,7 +278,7 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
                   <strong>
                     {subInfo.daysRemaining} {subInfo.daysRemaining === 1 ? 'dia' : 'dias'}
                   </strong>{' '}
-                  ({subInfo.formattedExpiresAt}). Realize o pagamento via InfinitePay (PIX ou Cartão) para não ter o acesso suspenso.
+                  ({subInfo.formattedExpiresAt}). Realize o pagamento para não ter o acesso suspenso.
                 </span>
               </div>
               <Link
@@ -289,7 +286,7 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
                 className="inline-flex items-center gap-1.5 shrink-0 rounded-md bg-black px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-neutral-900"
               >
                 <Zap className="h-3.5 w-3.5 fill-white" />
-                <span>Renovar via InfinitePay</span>
+                <span>Renovar Assinatura</span>
               </Link>
             </div>
           </div>
@@ -323,14 +320,14 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
 
                 <h2 className="text-2xl font-extrabold text-neutral-950">
                   {subInfo.status === 'unpaid'
-                    ? 'Pagamento Inicial Pendente (InfinitePay)'
+                    ? 'Pagamento Inicial Pendente'
                     : 'Assinatura IBarbear Pro Vencida'}
                 </h2>
 
                 <p className="mt-3 text-sm text-neutral-600 leading-relaxed">
                   {subInfo.status === 'unpaid'
-                    ? 'Para liberar o acesso ao painel de controle, agenda e página da sua barbearia, realize o pagamento da sua assinatura via InfinitePay (PIX ou Cartão).'
-                    : `O período de acesso da sua barbearia venceu em ${subInfo.formattedExpiresAt}. Para restabelecer o acesso total aos agendamentos e equipe, efetue a renovação via InfinitePay.`}
+                    ? 'Para liberar o acesso ao painel de controle, agenda e página da sua barbearia, realize o pagamento da sua assinatura.'
+                    : `O período de acesso da sua barbearia venceu em ${subInfo.formattedExpiresAt}. Para restabelecer o acesso total aos agendamentos e equipe, efetue a renovação.`}
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3">
@@ -339,7 +336,7 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-6 py-3.5 text-sm font-extrabold text-white shadow-md hover:bg-neutral-800 transition-colors"
                   >
                     <Zap className="h-4 w-4 fill-white" />
-                    <span>Realizar Pagamento (InfinitePay PIX / Cartão)</span>
+                    <span>Realizar Pagamento</span>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
 
@@ -351,24 +348,6 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
                     <span>Ver detalhes da minha assinatura</span>
                   </Link>
                 </div>
-
-                {/* Quick Simulation Bar for Testing */}
-                <div className="mt-8 pt-6 border-t border-neutral-100">
-                  <p className="text-[11px] text-neutral-500 mb-3">
-                    Modo Teste / Demonstração:
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const updated = await simulateSubscriptionState(user, 'active_30_days');
-                      setUser(updated);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Desbloquear Painel (Simular Ativo 30 dias)</span>
-                  </button>
-                </div>
               </div>
             ) : (
               children
@@ -379,4 +358,3 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
     </div>
   );
 };
-

@@ -15,7 +15,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
 } from 'firebase/auth';
 import { db, auth } from './firebase';
 import {
@@ -244,7 +243,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     name: 'Pomada Modeladora Matte Hold 120g',
     price: 4990,
     category: 'Pomadas & Ceras',
-    description: 'Fixação forte com acabamento fosco e natural. Ideal para penteados texturizados, topetes e cortes degradê. Não resseca e sai fácil com água.',
+    description: 'Fixação forte com acabamento fosco e natural. Ideal para penteados texturizados, topetes e cortes degradê.',
     imageUrl: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500&auto=format&fit=crop&q=80',
     stockQuantity: 18,
     minStockAlert: 5,
@@ -258,66 +257,10 @@ export const DEFAULT_PRODUCTS: Product[] = [
     name: 'Óleo para Barba Wood & Amber 30ml',
     price: 3990,
     category: 'Barba & Bigode',
-    description: 'Fórmula nutritiva com óleos de argan, jojoba e semente de uva. Hidrata fios rebeldes, elimina o frizz e confere fragrância amadeirada marcante.',
+    description: 'Fórmula nutritiva com óleos de argan, jojoba e semente de uva. Hidrata fios rebeldes e elimina o frizz.',
     imageUrl: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=500&auto=format&fit=crop&q=80',
     stockQuantity: 12,
     minStockAlert: 4,
-    active: true,
-    showInCatalog: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-03',
-    shopSlug: 'navalha',
-    name: 'Balm Multifuncional Pós-Barba & Hidratante 100g',
-    price: 4400,
-    category: 'Barba & Bigode',
-    description: 'Acalma a pele pós-lâmina com aloe vera e mentol refrescante. Modela fios curtos e médios mantendo a pele sem irritação ou foliculite.',
-    imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&auto=format&fit=crop&q=80',
-    stockQuantity: 8,
-    minStockAlert: 3,
-    active: true,
-    showInCatalog: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-04',
-    shopSlug: 'navalha',
-    name: 'Shampoo Mentolado Fortificante Cabelo & Barba 250ml',
-    price: 3490,
-    category: 'Tratamento & Cuidados',
-    description: 'Limpeza profunda com sensação ultra refrescante de menta e biotina. Controla a oleosidade do couro cabeludo e hidrata a barba sem ressecar.',
-    imageUrl: 'https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?w=500&auto=format&fit=crop&q=80',
-    stockQuantity: 15,
-    minStockAlert: 5,
-    active: true,
-    showInCatalog: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-05',
-    shopSlug: 'navalha',
-    name: 'Pente de Madeira Maciça Anti-Estático Pocket',
-    price: 2800,
-    category: 'Acessórios',
-    description: 'Pente de madeira de lei com dentes duplos finos e médios. Evita eletricidade estática, não quebra os fios da barba e cabe no bolso.',
-    imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&auto=format&fit=crop&q=80',
-    stockQuantity: 6,
-    minStockAlert: 3,
-    active: true,
-    showInCatalog: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'prod-06',
-    shopSlug: 'navalha',
-    name: 'Pomada em Pó Texturizadora Volume Dust 20g',
-    price: 4200,
-    category: 'Pomadas & Ceras',
-    description: 'Volume imediato na raiz e acabamento matte com textura leve e movimento natural para cabelos finos e médios.',
-    imageUrl: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=500&auto=format&fit=crop&q=80',
-    stockQuantity: 4,
-    minStockAlert: 5,
     active: true,
     showInCatalog: true,
     createdAt: new Date().toISOString(),
@@ -395,13 +338,10 @@ try {
   // Safe
 }
 
-// Helper to strip undefined values for Firestore compatibility
 export function sanitizeForFirestore<T extends Record<string, any>>(data: T): Record<string, any> {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (value === undefined) {
-      continue;
-    }
+    if (value === undefined) continue;
     if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
       result[key] = sanitizeForFirestore(value);
     } else {
@@ -422,31 +362,25 @@ export async function ensureFirestoreSeeded(shopSlug = 'navalha') {
     const shopRef = doc(db, 'shops', shopSlug);
     const shopSnap = await getDoc(shopRef);
     if (!shopSnap.exists()) {
-      // Seed default shop
       const shopData = DEFAULT_SHOPS.find((s) => s.slug === shopSlug) || DEFAULT_SHOPS[0];
       await setDoc(shopRef, sanitizeForFirestore({ ...shopData, slug: shopSlug }));
 
-      // Seed services
       for (const srv of DEFAULT_SERVICES) {
         await setDoc(doc(db, 'services', srv.id), sanitizeForFirestore(srv));
       }
 
-      // Seed barbers
       for (const barb of DEFAULT_BARBERS) {
         await setDoc(doc(db, 'barbers', barb.id), sanitizeForFirestore(barb));
       }
 
-      // Seed products
       for (const prod of DEFAULT_PRODUCTS) {
         await setDoc(doc(db, 'products', prod.id), sanitizeForFirestore(prod));
       }
 
-      // Seed bookings
       for (const bk of DEFAULT_BOOKINGS) {
         await setDoc(doc(db, 'bookings', bk.id), sanitizeForFirestore(bk));
       }
 
-      // Seed user
       await setDoc(doc(db, 'users', DEFAULT_USER.id), sanitizeForFirestore(DEFAULT_USER));
     }
   } catch (err) {
@@ -456,7 +390,6 @@ export async function ensureFirestoreSeeded(shopSlug = 'navalha') {
   }
 }
 
-// Automatically trigger initial seeding in the background
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     ensureFirestoreSeeded('navalha');
@@ -476,8 +409,7 @@ export function subscribeToShop(slug: string, callback: (shop: BarberShop | null
         saveShopLocal(data);
         callback(data);
       } else {
-        const local = getShop(slug);
-        callback(local);
+        callback(getShop(slug));
       }
     },
     (err) => {
@@ -554,10 +486,7 @@ export function subscribeToBookings(
   shopSlug: string,
   callback: (bookings: Booking[], stats: BookingStats) => void
 ) {
-  const q = query(
-    collection(db, 'bookings'),
-    where('shopSlug', '==', shopSlug)
-  );
+  const q = query(collection(db, 'bookings'), where('shopSlug', '==', shopSlug));
 
   return onSnapshot(
     q,
@@ -565,7 +494,6 @@ export function subscribeToBookings(
       const items: Booking[] = [];
       snap.forEach((doc) => items.push(doc.data() as Booking));
 
-      // Calculate stats
       const stats: BookingStats = {
         total: items.length,
         pending: items.filter((b) => b.status === 'pending').length,
@@ -577,7 +505,6 @@ export function subscribeToBookings(
           .reduce((sum, b) => sum + (b.servicePrice || 0), 0),
       };
 
-      // Sort descending by date and time
       items.sort((a, b) => {
         const dtA = `${a.date} ${a.time}`;
         const dtB = `${b.date} ${b.time}`;
@@ -661,7 +588,7 @@ export async function getShopAsync(slug: string): Promise<BarberShop | null> {
 }
 
 export async function saveShopAsync(shop: BarberShop): Promise<BarberShop> {
-  saveShop(shop); // update local instantly
+  saveShop(shop);
   try {
     await setDoc(doc(db, 'shops', shop.slug), sanitizeForFirestore(shop), { merge: true });
   } catch (err) {
@@ -779,7 +706,6 @@ export async function createBookingAsync(
   shopSlug: string,
   data: Omit<Booking, 'id' | 'shopSlug' | 'createdAt' | 'status'>
 ): Promise<Booking> {
-  // Check for conflicts in Firestore and locally
   const id = `BK-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
   const newBooking: Booking = {
     customerEmail: data.customerEmail || '',
@@ -835,7 +761,6 @@ export function getShop(slug: string): BarberShop | null {
 export function saveShop(shop: BarberShop): BarberShop {
   initStorage();
   saveShopLocal(shop);
-  // Async firestore sync in background
   setDoc(doc(db, 'shops', shop.slug), sanitizeForFirestore(shop), { merge: true }).catch(console.warn);
   return shop;
 }
@@ -1018,8 +943,6 @@ export function createBooking(
 
   bookings.unshift(newBooking);
   localStorage.setItem(KEYS.BOOKINGS, JSON.stringify(bookings));
-
-  // Sync to Firestore in background with sanitized data
   setDoc(doc(db, 'bookings', id), sanitizeForFirestore(newBooking)).catch(console.warn);
 
   return newBooking;
@@ -1077,7 +1000,7 @@ export function getAvailableSlots(
 }
 
 // -------------------------------------------------------------
-// AUTHENTICATION & USER MANAGEMENT (FIRESTORE + AUTH)
+// AUTHENTICATION & USER MANAGEMENT
 // -------------------------------------------------------------
 export async function hashPassword(password: string): Promise<string> {
   const clean = password.trim();
@@ -1128,7 +1051,6 @@ export async function loginUser(email: string, password?: string): Promise<User>
 
   const inputHash = await hashPassword(cleanPassword);
 
-  // 1. Check Demo Account with strict password check
   if (cleanEmail === 'lucas@barbearianavalha.com.br') {
     if (cleanPassword !== '123456') {
       throw new Error('Senha incorreta para a conta demonstrativa. A senha padrão de teste é: 123456');
@@ -1157,7 +1079,7 @@ export async function loginUser(email: string, password?: string): Promise<User>
           setCurrentUser(demoUser);
           return demoUser;
         } catch {
-          // Continue to fallback
+          // Fallback
         }
       }
     }
@@ -1173,11 +1095,10 @@ export async function loginUser(email: string, password?: string): Promise<User>
     return demoUser;
   }
 
-  // 2. Standard user sign-in with Firebase Auth & Password Hash Verification
   try {
     const userCred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
     const userDocSnap = await getDoc(doc(db, 'users', userCred.user.uid));
-    
+
     if (userDocSnap.exists()) {
       const u = userDocSnap.data() as User;
       if (u.passwordHash && u.passwordHash !== inputHash) {
@@ -1187,7 +1108,6 @@ export async function loginUser(email: string, password?: string): Promise<User>
       return u;
     }
 
-    // Search user by email in Firestore
     const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
     const snap = await getDocs(q);
     if (!snap.empty) {
@@ -1212,14 +1132,11 @@ export async function loginUser(email: string, password?: string): Promise<User>
   } catch (authErr: any) {
     const code = authErr?.code || '';
 
-    // If explicit wrong password from Firebase Auth
     if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
       throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
     }
 
-    // If user-not-found in Firebase Auth, check Firestore or local registered users
     if (code === 'auth/user-not-found') {
-      // Check in Firestore
       try {
         const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
         const snap = await getDocs(q);
@@ -1228,7 +1145,6 @@ export async function loginUser(email: string, password?: string): Promise<User>
           if (u.passwordHash && u.passwordHash !== inputHash) {
             throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
           }
-          // Attempt to sync user to Firebase Auth
           try {
             await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
           } catch {
@@ -1243,7 +1159,6 @@ export async function loginUser(email: string, password?: string): Promise<User>
         }
       }
 
-      // Check registered users in local storage
       const registered = getRegisteredUsers();
       const found = registered.find((u) => u.email.toLowerCase() === cleanEmail);
       if (found) {
@@ -1267,11 +1182,10 @@ export async function loginUser(email: string, password?: string): Promise<User>
       throw new Error('Esta conta foi desativada pelo administrador.');
     }
 
-    // If authErr is a thrown Error instance with message from validation above
     if (authErr instanceof Error && authErr.message) {
       throw authErr;
     }
-    
+
     throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
   }
 }
@@ -1292,7 +1206,6 @@ export async function registerUser(
 
   const passwordHash = await hashPassword(cleanPassword);
 
-  // Check if email is already in registered users locally
   const existingLocal = getRegisteredUsers().find((u) => u.email.toLowerCase() === cleanEmail);
   if (existingLocal && cleanEmail !== 'lucas@barbearianavalha.com.br') {
     throw new Error('Este e-mail já está cadastrado. Acesse a aba "Entrar" para fazer login com sua senha.');
@@ -1304,14 +1217,13 @@ export async function registerUser(
 
   let userId = `usr-${Date.now()}`;
 
-  // Register in Firebase Auth
   try {
     const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
     userId = userCred.user.uid;
   } catch (authErr: any) {
     console.error('Firebase Auth registration error:', authErr);
     const code = authErr?.code || '';
-    
+
     if (code === 'auth/email-already-in-use') {
       throw new Error('Este e-mail já está cadastrado. Acesse a aba "Entrar" para fazer login com sua senha.');
     }
@@ -1321,7 +1233,7 @@ export async function registerUser(
     if (code === 'auth/invalid-email') {
       throw new Error('O formato do e-mail informado é inválido.');
     }
-    
+
     throw new Error('Não foi possível criar sua conta. Verifique os dados informados e tente novamente.');
   }
 
@@ -1345,7 +1257,6 @@ export async function registerUser(
   saveShop(newShop);
   await setDoc(doc(db, 'shops', finalSlug), sanitizeForFirestore(newShop));
 
-  // Pre-seed services in Firestore
   const srv1: Service = {
     id: `srv-${Date.now()}-1`,
     shopSlug: finalSlug,
@@ -1370,7 +1281,6 @@ export async function registerUser(
   await setDoc(doc(db, 'services', srv1.id), sanitizeForFirestore(srv1));
   await setDoc(doc(db, 'services', srv2.id), sanitizeForFirestore(srv2));
 
-  // Pre-seed barber in Firestore
   const barb1: Barber = {
     id: `barb-${Date.now()}-1`,
     shopSlug: finalSlug,
@@ -1389,7 +1299,7 @@ export async function registerUser(
     email: cleanEmail,
     shopSlug: finalSlug,
     passwordHash,
-    subscriptionStatus: 'unpaid', // Requires initial PIX payment before panel access
+    subscriptionStatus: 'unpaid',
     subscriptionPlan: 'monthly',
   };
 
@@ -1397,7 +1307,6 @@ export async function registerUser(
   localStorage.setItem(KEYS.REGISTERED_USERS, JSON.stringify([...registered, newUser]));
   setCurrentUser(newUser);
 
-  // Save user profile in Firestore
   await setDoc(doc(db, 'users', userId), sanitizeForFirestore(newUser));
 
   return { user: newUser, shop: newShop };
@@ -1409,7 +1318,7 @@ export function logoutUser(): void {
 }
 
 // -------------------------------------------------------------
-// PIX PAYMENTS & SUBSCRIPTION LIFECYCLE MANAGEMENT
+// PAYMENTS & SUBSCRIPTION LIFECYCLE MANAGEMENT
 // -------------------------------------------------------------
 
 export const OFFICIAL_PIX_KEY = '9fd37bb2-4f3e-4de7-ba58-331d3374fa0e';
@@ -1427,22 +1336,19 @@ export const PLAN_PRICING = {
   yearly: {
     id: 'yearly',
     name: 'Plano Pro Anual',
-    priceCents: 88800,
-    priceLabel: 'R$ 888,00',
+    priceCents: 89000,
+    priceLabel: 'R$ 890,00',
     period: 'por ano (R$ 74/mês)',
     days: 365,
     discountBadge: 'Economize 20%',
   },
 } as const;
 
-/**
- * Standard Brazilian Central Bank PIX EMV Code (Copia e Cola / QR Code payload)
- */
 export function generatePixPayload(params: {
   key?: string;
   name?: string;
   city?: string;
-  amount: number; // In BRL, e.g. 89.00
+  amount: number;
   txId?: string;
 }): string {
   const formatField = (id: string, value: string): string => {
@@ -1473,18 +1379,17 @@ export function generatePixPayload(params: {
     formatField('05', cleanTxId);
 
   const payloadWithoutCrc =
-    formatField('00', '01') + // Format indicator
-    formatField('26', merchantAccountInfo) + // Merchant info
-    formatField('52', '0000') + // Merchant category
-    formatField('53', '986') + // Currency: BRL
-    formatField('54', params.amount.toFixed(2)) + // Amount
-    formatField('58', 'BR') + // Country
-    formatField('59', cleanName) + // Merchant name
-    formatField('60', cleanCity) + // Merchant city
-    formatField('62', additionalDataField) + // Additional data (TxID)
-    '6304'; // CRC16 indicator
+    formatField('00', '01') +
+    formatField('26', merchantAccountInfo) +
+    formatField('52', '0000') +
+    formatField('53', '986') +
+    formatField('54', params.amount.toFixed(2)) +
+    formatField('58', 'BR') +
+    formatField('59', cleanName) +
+    formatField('60', cleanCity) +
+    formatField('62', additionalDataField) +
+    '6304';
 
-  // Compute CRC16 (CCITT-FALSE 0x1021)
   let crc = 0xffff;
   for (let i = 0; i < payloadWithoutCrc.length; i++) {
     crc ^= payloadWithoutCrc.charCodeAt(i) << 8;
@@ -1515,9 +1420,6 @@ export function saveLocalPayment(payment: PaymentRecord): void {
   localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(updated));
 }
 
-/**
- * Calculates real-time subscription details, days remaining and lock/warning states.
- */
 export function getSubscriptionInfo(user: User | null): {
   status: SubscriptionStatus;
   isLocked: boolean;
@@ -1541,7 +1443,6 @@ export function getSubscriptionInfo(user: User | null): {
     };
   }
 
-  // If marked explicitly as unpaid or no expiration date exists
   if (user.subscriptionStatus === 'unpaid' || !user.subscriptionExpiresAt) {
     return {
       status: 'unpaid',
@@ -1569,7 +1470,7 @@ export function getSubscriptionInfo(user: User | null): {
   if (diffMs <= 0 || daysRemaining <= 0) {
     return {
       status: 'expired',
-      isLocked: true, // Panel access is limited/blocked
+      isLocked: true,
       isExpiringSoon: false,
       isExpired: true,
       daysRemaining: 0,
@@ -1579,10 +1480,10 @@ export function getSubscriptionInfo(user: User | null): {
     };
   }
 
-  if (daysRemaining <= 5) {
+  if (daysRemaining <= 3) {
     return {
       status: 'expiring',
-      isLocked: false, // Accessible, but show high-priority warning
+      isLocked: false,
       isExpiringSoon: true,
       isExpired: false,
       daysRemaining,
@@ -1604,9 +1505,6 @@ export function getSubscriptionInfo(user: User | null): {
   };
 }
 
-/**
- * Creates a new PIX Payment record for the user and generates the PIX payload.
- */
 export async function createPixPayment(
   user: User,
   plan: SubscriptionPlan = 'monthly'
@@ -1615,8 +1513,7 @@ export async function createPixPayment(
   const planInfo = PLAN_PRICING[plan];
   const paymentId = `PIX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const now = new Date();
-  
-  // Calculate future expiration granted upon payment
+
   const currentExpiresAt = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null;
   const baseDate = currentExpiresAt && currentExpiresAt.getTime() > now.getTime() ? currentExpiresAt : now;
   const targetExpiresDate = new Date(baseDate.getTime() + planInfo.days * 24 * 60 * 60 * 1000);
@@ -1648,15 +1545,12 @@ export async function createPixPayment(
   try {
     await setDoc(doc(db, 'payments', payment.id), sanitizeForFirestore(payment));
   } catch (err) {
-    console.warn('Firestore payment save error (using local cache fallback):', err);
+    console.warn('Firestore payment save error:', err);
   }
 
   return payment;
 }
 
-/**
- * Confirms PIX Payment, activates user subscription, and unlocks the panel.
- */
 export async function confirmPixPayment(
   paymentId: string,
   extraDetails?: {
@@ -1700,7 +1594,6 @@ export async function confirmPixPayment(
     // Safe
   }
 
-  // Update user subscription in localStorage and Firestore
   const currentUser = getCurrentUser();
   const userId = payment.userId;
   let targetUser = currentUser && currentUser.id === userId ? currentUser : null;
@@ -1725,7 +1618,6 @@ export async function confirmPixPayment(
     lastPaymentId: payment.id,
   };
 
-  // Update registered users
   const registered = getRegisteredUsers().map((u) =>
     u.id === updatedUser.id || u.email.toLowerCase() === updatedUser.email.toLowerCase()
       ? updatedUser
@@ -1746,124 +1638,6 @@ export async function confirmPixPayment(
   return { payment, user: updatedUser };
 }
 
-/**
- * Verifies PIX payment with backend server and immediately activates user subscription.
- */
-export async function verifyAndConfirmPayment(
-  paymentId: string,
-  e2eId?: string
-): Promise<{ success: boolean; user: User; payment: PaymentRecord }> {
-  try {
-    await fetch('/api/pix/verify-instant', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentId, e2eId }),
-    });
-  } catch {
-    // Ignore network failure and proceed with local/Firestore confirmation
-  }
-
-  const result = await confirmPixPayment(paymentId, {
-    e2eId: e2eId || `E00416968${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    verificationMethod: 'manual',
-  });
-
-  return { success: true, user: result.user, payment: result.payment };
-}
-
-/**
- * Validates real banking receipt authentication code / E2E ID on backend server
- * and unlocks platform once authenticated.
- */
-export async function validateRealPixReceipt(
-  paymentId: string,
-  params: {
-    e2eId: string;
-    bankName?: string;
-    receiptUrl?: string;
-    expectedAmount?: number;
-  }
-): Promise<{ success: boolean; message: string; user?: User; payment?: PaymentRecord }> {
-  try {
-    const res = await fetch('/api/pix/verify-receipt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentId,
-        e2eId: params.e2eId,
-        bankName: params.bankName,
-        receiptUrl: params.receiptUrl,
-        expectedAmount: params.expectedAmount,
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.message || 'Falha ao verificar autenticação do comprovante.');
-    }
-
-    const { user, payment } = await confirmPixPayment(paymentId, {
-      e2eId: params.e2eId,
-      bankName: params.bankName,
-      receiptUrl: params.receiptUrl,
-      verificationMethod: 'receipt_auth',
-    });
-
-    return {
-      success: true,
-      message: 'Comprovante bancário real validado com sucesso! Plataforma liberada.',
-      user,
-      payment,
-    };
-  } catch (err: any) {
-    // If backend is unreachable, validate standard Banco Central format locally
-    const cleanE2e = params.e2eId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (cleanE2e.length < 16) {
-      throw new Error(
-        'Código de autenticação inválido. O ID de transação PIX (E2E) do comprovante bancário deve possuir o padrão oficial do Banco Central (mínimo de 16 caracteres).'
-      );
-    }
-
-    const { user, payment } = await confirmPixPayment(paymentId, {
-      e2eId: cleanE2e,
-      bankName: params.bankName,
-      receiptUrl: params.receiptUrl,
-      verificationMethod: 'receipt_auth',
-    });
-
-    return {
-      success: true,
-      message: 'Pagamento autenticado com sucesso! Plataforma liberada.',
-      user,
-      payment,
-    };
-  }
-}
-
-/**
- * Polls backend status to detect real webhook or banking confirmation in real-time
- */
-export async function pollPaymentStatusFromServer(paymentId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/pix/status/${paymentId}`);
-    if (!res.ok) return false;
-    const data = await res.json();
-    if (data.status === 'approved') {
-      await confirmPixPayment(paymentId, {
-        e2eId: data.e2eId,
-        verificationMethod: 'webhook',
-      });
-      return true;
-    }
-  } catch {
-    // Silent
-  }
-  return false;
-}
-
-/**
- * Creates a payment session for subscription (PIX or Credit Card)
- */
 export async function createSubscriptionPayment(
   user: User,
   plan: SubscriptionPlan = 'monthly',
@@ -1874,7 +1648,6 @@ export async function createSubscriptionPayment(
   const paymentId = `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const now = new Date();
 
-  // Calculate future expiration granted upon payment
   const currentExpiresAt = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null;
   const baseDate = currentExpiresAt && currentExpiresAt.getTime() > now.getTime() ? currentExpiresAt : now;
   const targetExpiresDate = new Date(baseDate.getTime() + planInfo.days * 24 * 60 * 60 * 1000);
@@ -1914,12 +1687,6 @@ export async function createSubscriptionPayment(
   return payment;
 }
 
-// Alias for backwards compatibility
-export const createInfinitePayPayment = createSubscriptionPayment;
-
-/**
- * Processes a Credit Card payment securely
- */
 export async function processCardPayment(
   paymentId: string,
   cardData: {
@@ -1944,7 +1711,6 @@ export async function processCardPayment(
     else if (/^(606282|3841|636368|636297|5067|4576|4011)/.test(cleanNumber)) brand = 'Elo';
     else if (/^(60|3841)/.test(cleanNumber)) brand = 'Hipercard';
 
-    // Simulate backend card auth or call card processing route
     let transactionAuthId = `CARD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
     try {
@@ -1968,17 +1734,15 @@ export async function processCardPayment(
         if (data.transactionId) transactionAuthId = data.transactionId;
       }
     } catch {
-      // Local fallback
+      // Fallback local
     }
 
-    // Activate subscription locally and in Firestore
     const confirmResult = await confirmPixPayment(paymentId, {
       e2eId: transactionAuthId,
-      bankName: `Gateway Cartão (${brand})`,
+      bankName: `Mercado Pago (${brand})`,
       verificationMethod: 'card_checkout',
     });
 
-    // Update card specifics on payment record
     const updatedPayment: PaymentRecord = {
       ...confirmResult.payment,
       paymentMethod: 'credit_card',
@@ -2007,77 +1771,6 @@ export async function processCardPayment(
   }
 }
 
-// Alias for backwards compatibility
-export const processInfinitePayCardPayment = processCardPayment;
-
-/**
- * Calls InfinitePay payment_check endpoint:
- * POST https://api.checkout.infinitepay.io/payment_check
- * Body: { handle, order_nsu, transaction_nsu, slug }
- */
-export async function checkInfinitePayPaymentStatus(params: {
-  handle?: string;
-  order_nsu?: string;
-  transaction_nsu?: string;
-  slug?: string;
-}): Promise<{ success: boolean; isApproved: boolean; status: string; data?: any }> {
-  try {
-    const res = await fetch('/api/infinitepay/payment_check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        handle: params.handle || 'lcsluuca',
-        order_nsu: params.order_nsu,
-        transaction_nsu: params.transaction_nsu,
-        slug: params.slug,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        success: true,
-        isApproved: Boolean(data.isApproved),
-        status: data.status || 'pending',
-        data: data.remoteData || data,
-      };
-    }
-  } catch (err) {
-    console.warn('Error calling checkInfinitePayPaymentStatus:', err);
-  }
-
-  return { success: false, isApproved: false, status: 'error' };
-}
-
-/**
- * Fetches InfinitePay merchant config from backend
- */
-export async function getInfinitePayConfig(): Promise<{
-  configured: boolean;
-  handle: string;
-  checkoutUrl?: string;
-  maxInstallments: number;
-}> {
-  try {
-    const res = await fetch('/api/infinitepay/config');
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        configured: true,
-        handle: data.handle || 'lcsluuca',
-        checkoutUrl: data.checkoutUrl || 'https://checkout.infinitepay.io/lcsluuca/mFOVNjfSZD',
-        maxInstallments: data.maxInstallments || 12,
-      };
-    }
-  } catch {
-    // Safe
-  }
-  return { configured: true, handle: 'lcsluuca', checkoutUrl: 'https://checkout.infinitepay.io/lcsluuca/mFOVNjfSZD', maxInstallments: 12 };
-}
-
-/**
- * Returns all payment records for a given user.
- */
 export async function getUserPayments(userId: string): Promise<PaymentRecord[]> {
   initStorage();
   const local = getLocalPayments().filter((p) => p.userId === userId);
@@ -2091,7 +1784,6 @@ export async function getUserPayments(userId: string): Promise<PaymentRecord[]> 
     const snap = await getDocs(q);
     if (!snap.empty) {
       const fsPayments = snap.docs.map((d) => d.data() as PaymentRecord);
-      // Merge with local
       const mergedMap = new Map<string, PaymentRecord>();
       [...fsPayments, ...local].forEach((p) => mergedMap.set(p.id, p));
       const sorted = Array.from(mergedMap.values()).sort(
@@ -2105,58 +1797,4 @@ export async function getUserPayments(userId: string): Promise<PaymentRecord[]> 
   }
 
   return local.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-/**
- * Allows instant simulation of subscription states for testing and demonstrations.
- */
-export async function simulateSubscriptionState(
-  user: User,
-  state: 'active_30_days' | 'expiring_3_days' | 'expired' | 'unpaid'
-): Promise<User> {
-  const now = new Date();
-  let newExpiresAt: string | undefined;
-  let newStatus: SubscriptionStatus = 'active';
-
-  switch (state) {
-    case 'active_30_days':
-      newExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      newStatus = 'active';
-      break;
-    case 'expiring_3_days':
-      newExpiresAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
-      newStatus = 'expiring';
-      break;
-    case 'expired':
-      newExpiresAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
-      newStatus = 'expired';
-      break;
-    case 'unpaid':
-      newExpiresAt = undefined;
-      newStatus = 'unpaid';
-      break;
-  }
-
-  const updatedUser: User = {
-    ...user,
-    subscriptionStatus: newStatus,
-    subscriptionExpiresAt: newExpiresAt,
-  };
-
-  setCurrentUser(updatedUser);
-
-  const registered = getRegisteredUsers().map((u) =>
-    u.id === updatedUser.id || u.email.toLowerCase() === updatedUser.email.toLowerCase()
-      ? updatedUser
-      : u
-  );
-  localStorage.setItem(KEYS.REGISTERED_USERS, JSON.stringify(registered));
-
-  try {
-    await setDoc(doc(db, 'users', updatedUser.id), sanitizeForFirestore(updatedUser));
-  } catch {
-    // Safe
-  }
-
-  return updatedUser;
 }

@@ -2,39 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { PanelShell } from '../../components/panel/PanelShell';
 import {
   getCurrentUser,
-  getShop,
-  saveShop,
   getProducts,
   saveProduct,
   updateProductStock,
   deleteProduct,
   formatCurrency,
   subscribeToProducts,
-  subscribeToShop,
 } from '../../lib/storage';
-import { Product, BarberShop } from '../../types';
+import { Product } from '../../types';
 import {
   Plus,
   Package,
   Edit2,
   Trash2,
-  Check,
   X,
   AlertCircle,
   AlertTriangle,
   Eye,
   EyeOff,
   Search,
-  Filter,
-  TrendingUp,
   DollarSign,
   Boxes,
-  Sparkles,
-  Layers,
-  ArrowUpDown,
-  ShoppingBag,
-  Info,
-  ExternalLink,
 } from 'lucide-react';
 
 const SUGGESTED_CATEGORIES = [
@@ -77,7 +65,6 @@ export const PainelProdutos: React.FC = () => {
   const user = getCurrentUser();
   const shopSlug = user?.shopSlug || 'navalha';
 
-  const [shop, setShop] = useState<BarberShop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -99,37 +86,16 @@ export const PainelProdutos: React.FC = () => {
   const [active, setActive] = useState(true);
   const [showInCatalog, setShowInCatalog] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [toggleSuccessMsg, setToggleSuccessMsg] = useState<string | null>(null);
 
-  // Load shop & real-time products
+  // Load real-time products
   useEffect(() => {
-    const unsubShop = subscribeToShop(shopSlug, (data) => {
-      if (data) setShop(data);
-    });
     const unsubProducts = subscribeToProducts(shopSlug, (data) => {
       setProducts(data);
     });
     return () => {
-      unsubShop();
       unsubProducts();
     };
   }, [shopSlug]);
-
-  const handleToggleShopShowcase = (enabled: boolean) => {
-    if (!shop) return;
-    const updated: BarberShop = {
-      ...shop,
-      showProductsOnBookingPage: enabled,
-    };
-    saveShop(updated);
-    setShop(updated);
-    setToggleSuccessMsg(
-      enabled
-        ? 'Vitrine ativada na página pública de agendamento!'
-        : 'Vitrine ocultada na página pública de agendamento.'
-    );
-    setTimeout(() => setToggleSuccessMsg(null), 3000);
-  };
 
   const handleOpenAdd = () => {
     setEditingProduct(null);
@@ -166,10 +132,6 @@ export const PainelProdutos: React.FC = () => {
     setShowInCatalog(prod.showInCatalog ?? true);
     setErrorMsg(null);
     setIsModalOpen(true);
-  };
-
-  const handleToggleActive = (prod: Product) => {
-    saveProduct({ ...prod, active: !prod.active });
   };
 
   const handleToggleCatalogVisibility = (prod: Product) => {
@@ -251,7 +213,6 @@ export const PainelProdutos: React.FC = () => {
 
   // Filtered list
   const filteredProducts = products.filter((prod) => {
-    // Search filter
     const matchesSearch =
       prod.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prod.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -259,12 +220,10 @@ export const PainelProdutos: React.FC = () => {
 
     if (!matchesSearch) return false;
 
-    // Category filter
     if (selectedCategory !== 'all' && prod.category !== selectedCategory) {
       return false;
     }
 
-    // Stock filter
     if (stockFilter === 'in_stock' && prod.stockQuantity <= 0) return false;
     if (stockFilter === 'low_stock' && (prod.stockQuantity === 0 || prod.stockQuantity > (prod.minStockAlert ?? 4))) return false;
     if (stockFilter === 'out_of_stock' && prod.stockQuantity > 0) return false;
@@ -273,10 +232,7 @@ export const PainelProdutos: React.FC = () => {
     return true;
   });
 
-  // Unique categories in catalog
   const existingCategories = Array.from(new Set(products.map((p) => p.category))).filter(Boolean);
-
-  const isShowcaseActive = shop?.showProductsOnBookingPage !== false;
 
   return (
     <PanelShell
@@ -292,85 +248,6 @@ export const PainelProdutos: React.FC = () => {
         </button>
       }
     >
-      {/* Visibility Control Banner (Shop Owner Customization) */}
-      <div
-        id="vitrine-visibility-banner"
-        className={`mb-6 rounded-sm border p-5 transition-all ${
-          isShowcaseActive
-            ? 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
-            : 'border-amber-200 bg-amber-50/70 text-amber-950'
-        }`}
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3.5">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-sm ${
-                isShowcaseActive ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
-              }`}
-            >
-              <ShoppingBag className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold">
-                  Vitrine de Produtos na Página de Agendamento
-                </h2>
-                <span
-                  className={`inline-flex items-center rounded px-2 py-0.5 text-2xs font-bold uppercase tracking-wider ${
-                    isShowcaseActive
-                      ? 'bg-emerald-200/80 text-emerald-900'
-                      : 'bg-amber-200/80 text-amber-900'
-                  }`}
-                >
-                  {isShowcaseActive ? 'Visível aos Clientes' : 'Oculta no Site'}
-                </span>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-600">
-                {isShowcaseActive
-                  ? 'Os clientes podem ver seu catálogo de produtos (pomadas, óleos, balms, shampoos) diretamente ao agendar horário.'
-                  : 'A seção de produtos está oculta para clientes no site de agendamento. Seus dados e estoque continuam salvos no painel.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <label
-              htmlFor="toggle-vitrine-publica"
-              className="relative inline-flex cursor-pointer items-center"
-            >
-              <input
-                type="checkbox"
-                id="toggle-vitrine-publica"
-                checked={isShowcaseActive}
-                onChange={(e) => handleToggleShopShowcase(e.target.checked)}
-                className="peer sr-only"
-              />
-              <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-neutral-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-black peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-hidden" />
-              <span className="ml-2.5 text-xs font-bold text-neutral-900">
-                {isShowcaseActive ? 'Exibir no Site' : 'Ocultar no Site'}
-              </span>
-            </label>
-
-            <a
-              href={`/b/${shopSlug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-700 underline underline-offset-2 hover:text-black"
-            >
-              <span>Ver no site</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-        </div>
-
-        {toggleSuccessMsg && (
-          <div className="mt-3 flex items-center gap-2 text-xs font-bold text-emerald-800 border-t border-emerald-200/60 pt-2">
-            <Check className="h-3.5 w-3.5" />
-            <span>{toggleSuccessMsg}</span>
-          </div>
-        )}
-      </div>
-
       {/* Metrics Cards */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <div className="rounded-sm border border-neutral-200 bg-white p-4 shadow-2xs">

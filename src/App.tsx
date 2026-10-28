@@ -12,6 +12,7 @@ import { PainelLoja } from './pages/painel/Loja';
 import { PainelAssinatura } from './pages/painel/Assinatura';
 import { PagamentoPage } from './pages/pagamento/Index';
 import { NotFoundPage } from './pages/not-found/Index';
+import { PainelComissoes } from './pages/painel/Comissoes';
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/painel/equipe" element={<PainelEquipe />} />
         <Route path="/painel/loja" element={<PainelLoja />} />
         <Route path="/painel/assinatura" element={<PainelAssinatura />} />
+        <Route path="/painel/comissoes" element={<PainelComissoes />} />
 
         {/* Fallback 404 */}
         <Route path="*" element={<NotFoundPage />} />
