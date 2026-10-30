@@ -205,7 +205,10 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({ children }) => {
             <div className="flex flex-col items-center justify-between gap-4 text-xs text-neutral-500 sm:flex-row">
               <p>© {new Date().getFullYear()} {APP_CONFIG.fullName}. Todos os direitos reservados.</p>
               <div className="flex items-center gap-6">
-                <Link to="/auth" className="hover:text-neutral-300">
+                <Link to="/privacidade" className="hover:text-neutral-300 transition-colors">
+                  Política de Privacidade
+                </Link>
+                <Link to="/auth" className="hover:text-neutral-300 transition-colors">
                   Área do barbeiro
                 </Link>
               </div>

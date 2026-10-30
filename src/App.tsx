@@ -13,14 +13,20 @@ import { PainelAssinatura } from './pages/painel/Assinatura';
 import { PagamentoPage } from './pages/pagamento/Index';
 import { NotFoundPage } from './pages/not-found/Index';
 import { PainelComissoes } from './pages/painel/Comissoes';
+import { PrivacidadePage } from './pages/privacidade/Index';
+import { CookieConsent } from './components/common/CookieConsent';
 
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Banner de consentimento de cookies flutuante */}
+      <CookieConsent />
+
       <Routes>
         {/* Landing & Public Website */}
         <Route path="/" element={<HomePage />} />
         <Route path="/precos" element={<PrecosPage />} />
+        <Route path="/privacidade" element={<PrivacidadePage />} />
 
         {/* PIX Payment Checkout */}
         <Route path="/pagamento" element={<PagamentoPage />} />
@@ -47,4 +53,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
