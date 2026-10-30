@@ -337,7 +337,7 @@ export const PagamentoPage: React.FC = () => {
       </main>
 
       <footer className="border-t border-neutral-200/90 bg-white py-4 text-center text-xs text-neutral-500">
-        <p>© {new Date().getFullYear()} IBarbear SaaS • Processamento seguro Mercado Pago.</p>
+        <p>© {new Date().getFullYear()} IBarbear • Processamento seguro Mercado Pago.</p>
       </footer>
     </div>
   );

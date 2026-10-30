@@ -34,7 +34,7 @@ import {
 
 export const APP_CONFIG = {
   name: 'IBarbear',
-  fullName: 'IBarbear SaaS',
+  fullName: 'IBarbear',
   tagline: 'Barbearia inteligente',
   demoSlug: 'navalha',
   plan: {
@@ -44,7 +44,7 @@ export const APP_CONFIG = {
     priceLabel: 'R$ 89',
     period: '/mês',
   },
-  supportEmail: 'contato@ibarbear.exemplo',
+  supportEmail: 'ibarbear@gmail.com',
 };
 
 export function slugify(text: string): string {
@@ -287,7 +287,7 @@ export const DEFAULT_PAYMENTS: PaymentRecord[] = [
     amount: 8900,
     plan: 'monthly',
     status: 'approved',
-    pixCode: '00020126580014BR.GOV.BCB.PIX0136pix@ibarbear.com.br520400005303986540589.005802BR5915IBARBEAR SAAS6009SAO PAULO62140510IBARBEAR016304C1B4',
+    pixCode: '00020126580014BR.GOV.BCB.PIX0136pix@ibarbear.com.br520400005303986540589.005802BR5915IBARBEAR 6009SAO PAULO62140510IBARBEAR016304C1B4',
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
@@ -1356,7 +1356,7 @@ export function generatePixPayload(params: {
     return `${id}${len}${value}`;
   };
 
-  const cleanName = (params.name || 'IBARBEAR SAAS')
+  const cleanName = (params.name || 'IBARBEAR')
     .slice(0, 25)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -1520,7 +1520,7 @@ export async function createPixPayment(
 
   const pixCode = generatePixPayload({
     key: OFFICIAL_PIX_KEY,
-    name: 'IBARBEAR SAAS',
+    name: 'IBARBEAR',
     city: 'SAO PAULO',
     amount: planInfo.priceCents / 100,
     txId: paymentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20),
@@ -1654,7 +1654,7 @@ export async function createSubscriptionPayment(
 
   const pixCode = generatePixPayload({
     key: OFFICIAL_PIX_KEY,
-    name: 'IBARBEAR SAAS',
+    name: 'IBARBEAR',
     city: 'SAO PAULO',
     amount: planInfo.priceCents / 100,
     txId: paymentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20),

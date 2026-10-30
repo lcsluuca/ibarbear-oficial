@@ -189,7 +189,7 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({ children }) => {
                 </li>
                 <li>
                   <span className="text-xs text-neutral-500 block">WhatsApp de suporte</span>
-                  <span className="text-white">(11) 98765-4321</span>
+                  <span className="text-white">(84) 999924-0202</span>
                 </li>
                 <li className="pt-2">
                   <div className="rounded border border-neutral-800 bg-neutral-900 p-3 text-xs text-neutral-400">
@@ -203,7 +203,7 @@ export const SiteLayout: React.FC<SiteLayoutProps> = ({ children }) => {
 
           <div className="mt-12 border-t border-neutral-800/80 pt-6">
             <div className="flex flex-col items-center justify-between gap-4 text-xs text-neutral-500 sm:flex-row">
-              <p>© {new Date().getFullYear()} {APP_CONFIG.fullName}. Todos os direitos reservados.</p>
+              <p>© {new Date().getFullYear()} IBarbear. Todos os direitos reservados.</p>
               <div className="flex items-center gap-6">
                 <Link to="/privacidade" className="hover:text-neutral-300 transition-colors">
                   Política de Privacidade
