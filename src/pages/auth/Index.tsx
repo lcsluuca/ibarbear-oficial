@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Logo } from '../../components/site/Logo';
+import { auth } from '../../lib/firebase';
 import {
-  getCurrentUser,
   loginUser,
   registerUser,
-  APP_CONFIG,
-  confirmPixPayment,
+
 } from '../../lib/storage';
 import { AlertCircle, Loader2, CheckCircle2, Eye, EyeOff, Mail, X, Check, Dot } from 'lucide-react';
-
 export const AuthPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
-
   const paymentRef = searchParams.get('ref') || searchParams.get('infinitepay_ref');
-
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +23,6 @@ export const AuthPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [paymentSuccessMsg, setPaymentSuccessMsg] = useState<string | null>(null);
-
   // Estados de "Tocado" (para exibir o erro só depois que o usuário mexer no campo)
   const [touched, setTouched] = useState({
     shopName: false,
@@ -35,50 +30,38 @@ export const AuthPage: React.FC = () => {
     email: false,
     password: false,
   });
-
   // Modal para recuperação de senha
   const [showResetModal, setShowResetModal] = useState(false);
-
   // Validações de Formato (E-mail e Nome)
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isValidName = name.trim().split(/\s+/).filter(part => part.length >= 2).length >= 2;
   const isValidShopName = shopName.trim().length >= 3;
-
   // Validações da Senha Forte
   const hasMinLength = password.length >= 8;
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
   const isPasswordStrong =
     hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
-
-  // Check if returning from Checkout
+  // A referencia na URL nao comprova que houve pagamento.
   useEffect(() => {
-    const checkRedirectPayment = async () => {
-      if (paymentRef) {
-        try {
-          await confirmPixPayment(paymentRef);
-          setPaymentSuccessMsg('Pagamento aprovado com sucesso! Faça login para acessar ao seu painel.');
-        } catch {
-          // Safe
-        }
-      }
-    };
-
-    checkRedirectPayment();
+    if (paymentRef) {
+      setPaymentSuccessMsg(null);
+      setErrorMsg(
+        'Referencia de pagamento recebida. ' +
+        'A assinatura so sera liberada apos confirmacao do provedor.'
+      );
+    }
   }, [paymentRef]);
 
   const handleBlur = (field: keyof typeof touched) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
-
     // Marca todos os campos como tocados ao tentar enviar
     setTouched({
       shopName: true,
@@ -86,7 +69,6 @@ export const AuthPage: React.FC = () => {
       email: true,
       password: true,
     });
-
     try {
       if (mode === 'signup') {
         if (!shopName.trim() || !isValidShopName) {
@@ -94,26 +76,22 @@ export const AuthPage: React.FC = () => {
           setLoading(false);
           return;
         }
-
         if (!name.trim() || !isValidName) {
           setErrorMsg('Por favor, informe o seu nome e sobrenome completos.');
           setLoading(false);
           return;
         }
-
         if (!email.trim() || !isValidEmail) {
           setErrorMsg('Por favor, insira um e-mail válido (ex: nome@dominio.com).');
           setLoading(false);
           return;
         }
-
         if (!isPasswordStrong) {
           setErrorMsg('A senha escolhida não atende a todos os requisitos de segurança.');
           setLoading(false);
           return;
         }
-
-        const { user } = await registerUser(name.trim(), email.trim(), shopName.trim(), password);
+        await registerUser(name.trim(), email.trim(), shopName.trim(), password);
         navigate('/pagamento?plan=monthly', { replace: true });
       } else {
         // Sign in
@@ -122,15 +100,29 @@ export const AuthPage: React.FC = () => {
           setLoading(false);
           return;
         }
-
         if (!isValidEmail) {
           setErrorMsg('O formato do e-mail digitado é inválido.');
           setLoading(false);
           return;
         }
-
         const user = await loginUser(email.trim(), password);
-        if (user.subscriptionStatus === 'unpaid') {
+
+        // Verifica a sessao real do Firebase.
+        const firebaseUser = auth.currentUser;
+
+        if (!firebaseUser || firebaseUser.uid !== user.id) {
+          throw new Error(
+            'Nao foi possivel confirmar sua sessao. Entre novamente.'
+          );
+        }
+
+        // A permissao administrativa vem do token Firebase,
+        // nunca de um e-mail ou UID fixo no codigo.
+        const tokenResult = await firebaseUser.getIdTokenResult(true);
+
+        if (tokenResult.claims.superadmin === true) {
+          navigate('/admin/barbearias', { replace: true });
+        } else if (user.subscriptionStatus === 'unpaid') {
           navigate('/pagamento?plan=monthly', { replace: true });
         } else {
           navigate('/painel', { replace: true });
@@ -142,7 +134,6 @@ export const AuthPage: React.FC = () => {
       setLoading(false);
     }
   };
-
   const handleForgotPassword = () => {
     if (!email.trim() || !isValidEmail) {
       setErrorMsg('Informe um e-mail válido no campo abaixo para redefinir a sua senha.');
@@ -151,7 +142,6 @@ export const AuthPage: React.FC = () => {
     setErrorMsg(null);
     setShowResetModal(true);
   };
-
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[#fafafa] p-4 sm:p-6 text-neutral-900">
       <div className="w-full max-w-[420px]">
@@ -161,7 +151,6 @@ export const AuthPage: React.FC = () => {
           <div className="flex items-center justify-center mb-6">
             <Logo size="md" />
           </div>
-
           {/* Title and Subtitle */}
           <div className="text-left mb-6">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-950">
@@ -173,7 +162,6 @@ export const AuthPage: React.FC = () => {
                 : 'Crie a sua conta para gerir a sua barbearia.'}
             </p>
           </div>
-
           {/* Segmented Control / Toggle Tabs */}
           <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-neutral-100 p-1 border border-neutral-200/40">
             <button
@@ -205,7 +193,6 @@ export const AuthPage: React.FC = () => {
               Cadastrar
             </button>
           </div>
-
           {/* Success / Approved Payment */}
           {paymentSuccessMsg && (
             <div className="mb-5 flex items-start gap-2.5 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
@@ -213,7 +200,6 @@ export const AuthPage: React.FC = () => {
               <span>{paymentSuccessMsg}</span>
             </div>
           )}
-
           {/* Error Message Global */}
           {errorMsg && (
             <div className="mb-5 flex items-start gap-2.5 rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 animate-in fade-in">
@@ -221,7 +207,6 @@ export const AuthPage: React.FC = () => {
               <span>{errorMsg}</span>
             </div>
           )}
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
             {mode === 'signup' && (
@@ -250,7 +235,6 @@ export const AuthPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-
                 {/* Nome Completo */}
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -277,7 +261,6 @@ export const AuthPage: React.FC = () => {
                 </div>
               </>
             )}
-
             {/* E-mail */}
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -302,7 +285,6 @@ export const AuthPage: React.FC = () => {
                 </p>
               )}
             </div>
-
             {/* Senha */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -346,29 +328,24 @@ export const AuthPage: React.FC = () => {
                   )}
                 </button>
               </div>
-
               {/* REQUISITOS DA SENHA */}
               {mode === 'signup' && (isPasswordFocused || password.length > 0) && (
                 <div className="mt-3 rounded-lg border border-neutral-200/80 bg-neutral-50/80 p-3 space-y-1.5 text-xs animate-in fade-in duration-200">
                   <p className="font-semibold text-neutral-700 text-[11px] uppercase tracking-wider mb-1">
                     A senha deve conter:
                   </p>
-
                   <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-600 font-medium' : 'text-neutral-400'}`}>
                     {hasMinLength ? <Check className="h-3.5 w-3.5 shrink-0" /> : <Dot className="h-4 w-4 shrink-0" />}
                     <span>Mínimo de 8 caracteres</span>
                   </div>
-
                   <div className={`flex items-center gap-1.5 ${hasUppercase && hasLowercase ? 'text-emerald-600 font-medium' : 'text-neutral-400'}`}>
                     {hasUppercase && hasLowercase ? <Check className="h-3.5 w-3.5 shrink-0" /> : <Dot className="h-4 w-4 shrink-0" />}
                     <span>Letras maiúsculas e minúsculas</span>
                   </div>
-
                   <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-emerald-600 font-medium' : 'text-neutral-400'}`}>
                     {hasNumber ? <Check className="h-3.5 w-3.5 shrink-0" /> : <Dot className="h-4 w-4 shrink-0" />}
                     <span>Pelo menos 1 número (0-9)</span>
                   </div>
-
                   <div className={`flex items-center gap-1.5 ${hasSpecialChar ? 'text-emerald-600 font-medium' : 'text-neutral-400'}`}>
                     {hasSpecialChar ? <Check className="h-3.5 w-3.5 shrink-0" /> : <Dot className="h-4 w-4 shrink-0" />}
                     <span>Pelo menos 1 caractere especial (!@#$...)</span>
@@ -376,7 +353,6 @@ export const AuthPage: React.FC = () => {
                 </div>
               )}
             </div>
-
             <button
               type="submit"
               disabled={loading}
@@ -387,7 +363,6 @@ export const AuthPage: React.FC = () => {
             </button>
           </form>
         </div>
-
         {/* Back Link */}
         <div className="mt-5 text-center">
           <Link
@@ -398,7 +373,6 @@ export const AuthPage: React.FC = () => {
           </Link>
         </div>
       </div>
-
       {/* POPUP DE CONFIRMAÇÃO */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -409,11 +383,9 @@ export const AuthPage: React.FC = () => {
             >
               <X className="h-5 w-5" />
             </button>
-
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/50">
               <Mail className="h-7 w-7" />
             </div>
-
             <h3 className="text-lg font-bold text-neutral-900">E-mail enviado!</h3>
             <p className="mt-2 text-xs text-neutral-500 leading-relaxed">
               Enviamos um link de redefinição de senha para:
@@ -423,7 +395,6 @@ export const AuthPage: React.FC = () => {
             <p className="mt-2 text-[11px] text-neutral-400">
               Verifique também a sua caixa de spam ou lixo eletrônico.
             </p>
-
             <button
               type="button"
               onClick={() => setShowResetModal(false)}

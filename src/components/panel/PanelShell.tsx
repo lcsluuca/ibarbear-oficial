@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import type { BarberShop, User } from '../../types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../site/Logo';
 import {
-  getCurrentUser,
-  getShop,
   logoutUser,
   getSubscriptionInfo,
 } from '../../lib/storage';
@@ -37,24 +37,21 @@ interface PanelShellProps {
 export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser());
+  const { user, shop } = useOutletContext<{
+    user: User | null;
+    shop: BarberShop | null;
+  }>();
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-    }
-  }, [user, navigate]);
 
-  const shop = user ? getShop(user.shopSlug) : getShop('navalha');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  if (!user) {
+  if (!user || !shop) {
     return null;
   }
 
   const subInfo = getSubscriptionInfo(user);
-  const shopSlug = shop?.slug || 'navalha';
+  const shopSlug = user.shopSlug;
   const publicUrl = `${window.location.origin}/b/${shopSlug}`;
 
   const navItems = [
@@ -133,7 +130,7 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-neutral-900">
-                {shop?.name || 'Barbearia Navalha'}
+                {shop.name || 'Barbearia'}
               </p>
               <p className="truncate text-xs text-neutral-500 font-mono">
                 /b/{shopSlug}
@@ -236,7 +233,7 @@ export const PanelShell: React.FC<PanelShellProps> = ({ title, children, action 
         {/* User Footer */}
         <div className="border-t border-neutral-200 p-4">
           <div className="mb-3 flex items-center justify-between text-xs text-neutral-500">
-            <span className="truncate">{user?.email || 'barbeiro@navalha.com'}</span>
+            <span className="truncate">{user.email}</span>
           </div>
           <div className="flex items-center gap-2">
             <Link

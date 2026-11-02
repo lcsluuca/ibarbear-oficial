@@ -9,8 +9,8 @@ export const PrecosPage: React.FC = () => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const price = billingCycle === 'monthly' ? 89 : 74;
-  const priceLabel = billingCycle === 'monthly' ? 'R$ 89' : 'R$ 74';
+  const price = billingCycle === 'monthly' ? 89 : 74.17;
+  const priceLabel = billingCycle === 'monthly' ? 'R$ 89' : 'R$ 74,17';
 
   const planFeatures = [
     'Agendamentos online 24h ilimitados',
@@ -110,7 +110,7 @@ export const PrecosPage: React.FC = () => {
             <p className="mt-3 text-xs text-neutral-600">
               {billingCycle === 'monthly'
                 ? 'Cobrado mensalmente. Cancele quando quiser.'
-                : 'Faturado anualmente (R$ 888/ano). O melhor custo-benefício.'}
+                : 'Faturado anualmente (R$ 890/ano). O melhor custo-benefício.'}
             </p>
 
             <div className="mt-8 border-t border-neutral-100 pt-6">

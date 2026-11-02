@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import confetti from 'canvas-confetti';
+import { auth } from '../../lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Logo } from '../../components/site/Logo';
 import {
   getCurrentUser,
@@ -11,96 +12,105 @@ import { SubscriptionPlan } from '../../types';
 import {
   ShieldCheck,
   Sparkles,
-  ArrowRight,
   LogOut,
   RefreshCw,
-  CheckCircle2,
   Lock,
   CreditCard,
 } from 'lucide-react';
-
 export const PagamentoPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const user = getCurrentUser();
-
   const initialPlan = (searchParams.get('plan') === 'yearly' ? 'yearly' : 'monthly') as SubscriptionPlan;
   const isRenewal = searchParams.get('renewal') === 'true';
-  const isSuccessRedirect = searchParams.get('success') === 'true';
-
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(initialPlan);
   const [loadingPayment, setLoadingPayment] = useState<boolean>(false);
-  const [paymentSuccess, setPaymentSuccess] = useState<boolean>(isSuccessRedirect);
-
-  // Redireciona para o login se não estiver autenticado
+  const [checkingPayment, setCheckingPayment] = useState<boolean>(false);
+  const [paymentMessage, setPaymentMessage] = useState<string>('');
+  const isLocal = typeof window === 'undefined' || ['localhost', '127.0.0.1'].includes(window.location.hostname) || import.meta.env.MODE === 'emulator';
+  // O Firebase Auth e a fonte de identidade. Os dados locais servem apenas para exibicao.
   useEffect(() => {
-    if (!user) {
-      navigate('/auth?mode=signin', { replace: true });
-    }
-  }, [user, navigate]);
-
-  // Se retornou do redirecionamento de sucesso
-  useEffect(() => {
-    if (isSuccessRedirect) {
-      handleTriggerSuccess();
-    }
-  }, [isSuccessRedirect]);
-
-  // Função para criar a assinatura no Mercado Pago via PHP
-  const handleCheckoutMercadoPago = async () => {
-    if (!user) return;
-    setLoadingPayment(true);
-
-    try {
-      const planInfo = PLAN_PRICING[selectedPlan];
-      // Valor em reais (calculado a partir de priceCents ou price)
-      const amountInReais = planInfo.priceCents / 100;
-
-      const response = await fetch('/api/criar-pagamento.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: amountInReais,
-          email: user.email || 'comprador@email.com',
-          title: `Assinatura ${planInfo.name} - IBarbear`,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.init_point) {
-        // Redireciona o usuário para o Checkout do Mercado Pago
-        window.location.href = data.init_point;
-      } else {
-        console.error('Erro retornado pela API:', data);
-        alert('Não foi possível gerar o link de pagamento. Tente novamente.');
+    let cancelled = false;
+    auth.authStateReady().then(() => {
+      if (!cancelled && !auth.currentUser) {
+        navigate('/auth?mode=signin', { replace: true });
       }
-    } catch (err) {
-      console.error('Erro ao conectar com a API PHP:', err);
-      alert('Erro ao processar requisição. Verifique a conexão.');
+    }).catch(() => {
+      if (!cancelled) navigate('/auth?mode=signin', { replace: true });
+    });
+
+  return () => { cancelled = true; };
+  }, [navigate]);
+
+  const handleCheckoutMercadoPago = async () => {
+    if (loadingPayment || checkingPayment) return;
+    setPaymentMessage('');
+    if (isLocal) {
+      setPaymentMessage('Checkout real desativado em localhost/Emulator. Nenhuma assinatura foi criada.');
+      return;
+    }
+    setLoadingPayment(true);
+    try {
+      await auth.authStateReady();
+      if (!auth.currentUser) {
+        navigate('/auth?mode=signin', { replace: true });
+        return;
+      }
+      // O backend verifica o UID autenticado, o plano e o vinculo da barbearia.
+      // Nenhuma chave privada e enviada pelo navegador.
+      const functionClient = getFunctions(auth.app, 'southamerica-east1');
+      const createCheckout = httpsCallable<{ plan: SubscriptionPlan }, { checkoutUrl: string; reused?: boolean }>(
+        functionClient,
+        'ibarbearMpCreateCheckout'
+      );
+      const { data } = await createCheckout({ plan: selectedPlan });
+      const url = new URL(data.checkoutUrl);
+      const permitted = ['mercadopago.com.br', 'mercadopago.com'].some(
+        domain => url.hostname === domain || url.hostname.endsWith('.' + domain)
+      );
+      if (url.protocol !== 'https:' || url.username || url.password || url.port || !permitted) {
+        throw new Error('Endereco de checkout invalido.');
+      }
+      window.location.assign(url.toString());
+    } catch (error) {
+      console.error('Falha ao iniciar checkout Mercado Pago:', error);
+      setPaymentMessage('Nao foi possivel iniciar o checkout. Se ja houve tentativa, nao repita o pedido; contate o suporte.');
     } finally {
       setLoadingPayment(false);
     }
   };
 
-  // Dispara animação de celebração e redirecionamento
-  const handleTriggerSuccess = () => {
-    setPaymentSuccess(true);
-
-    try {
-      confetti({
-        particleCount: 150,
-        spread: 90,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#059669', '#34d399', '#000000'],
-      });
-    } catch {
-      // Safe
+  const handleVerifyPayment = async () => {
+    if (loadingPayment || checkingPayment) return;
+    setPaymentMessage('');
+    if (isLocal) {
+      setPaymentMessage('A consulta a pagamentos reais esta desativada em localhost/Emulator.');
+      return;
     }
-
-    setTimeout(() => {
-      navigate('/painel', { replace: true });
-    }, 2800);
+    setCheckingPayment(true);
+    try {
+      await auth.authStateReady();
+      if (!auth.currentUser) {
+        navigate('/auth?mode=signin', { replace: true });
+        return;
+      }
+      const functionClient = getFunctions(auth.app, 'southamerica-east1');
+      const verifyPayment = httpsCallable<Record<string, never>, { code: string; activatedNow?: boolean; recorded?: number }>(
+        functionClient,
+        'ibarbearMpReconcilePayment'
+      );
+      const { data } = await verifyPayment({});
+      if (data.activatedNow || data.code === 'payments_verified') {
+        setPaymentMessage('Conferencia concluida. Seu acesso depende do status de assinatura validado no Firebase. Atualize a pagina ou entre novamente.');
+      } else {
+        setPaymentMessage('Ainda nao ha pagamento confirmado para liberar o painel. Se voce acabou de autorizar, consulte novamente mais tarde.');
+      }
+    } catch (error) {
+      console.error('Falha ao consultar assinatura:', error);
+      setPaymentMessage('Nao foi possivel consultar a assinatura agora. Nenhuma nova cobranca foi criada.');
+    } finally {
+      setCheckingPayment(false);
+    }
   };
 
   const currentPlanInfo = PLAN_PRICING[selectedPlan];
@@ -113,10 +123,9 @@ export const PagamentoPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <Logo />
             <span className="hidden sm:inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-emerald-700 border border-emerald-200/60">
-              Checkout Mercado Pago Integrado
+              Assinatura segura
             </span>
           </div>
-
           <div className="flex items-center gap-3">
             {user && (
               <div className="text-right hidden sm:block">
@@ -124,7 +133,6 @@ export const PagamentoPage: React.FC = () => {
                 <p className="text-[11px] text-neutral-500">{user.shopSlug}.ibarbear.com</p>
               </div>
             )}
-
             <button
               type="button"
               onClick={() => {
@@ -139,76 +147,21 @@ export const PagamentoPage: React.FC = () => {
           </div>
         </div>
       </header>
-
       {/* Área Principal */}
       <main className="mx-auto flex-1 max-w-4xl px-4 py-8 sm:px-6 sm:py-12 w-full">
-        {paymentSuccess ? (
-          /* Tela de Sucesso */
-          <div className="mx-auto max-w-lg rounded-2xl border border-emerald-200/80 bg-white p-8 text-center shadow-lg animate-in fade-in zoom-in-95 duration-300">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
-              <CheckCircle2 className="h-12 w-12" />
-            </div>
-
-            <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3">
-              Pagamento Confirmado
-            </span>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">
-              Assinatura Ativada com Sucesso!
-            </h1>
-
-            <p className="mt-3 text-sm sm:text-base text-neutral-600 leading-relaxed">
-              O pagamento no valor de{' '}
-              <strong className="text-neutral-900">{currentPlanInfo.priceLabel}</strong> foi
-              confirmado via Mercado Pago. O acesso ao seu painel profissional e à agenda online já está 100% liberado.
-            </p>
-
-            <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-left">
-              <div className="flex items-center justify-between text-xs text-neutral-600 pb-2 border-b border-neutral-200/70">
-                <span>Plano:</span>
-                <span className="font-bold text-neutral-900">{currentPlanInfo.name}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-neutral-600 pt-2 pb-2 border-b border-neutral-200/70">
-                <span>Gateway:</span>
-                <span className="font-bold text-emerald-700">Mercado Pago</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-neutral-600 pt-2 pb-2 border-b border-neutral-200/70">
-                <span>Status:</span>
-                <span className="font-bold text-emerald-700">Ativo e Liberado</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-neutral-600 pt-2">
-                <span>Validade da Assinatura:</span>
-                <span className="font-bold text-neutral-900">
-                  {new Date(Date.now() + currentPlanInfo.days * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate('/painel')}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-950 py-3.5 text-sm font-bold text-white shadow-md hover:bg-neutral-800 transition-all cursor-pointer"
-            >
-              <span>Acessar Meu Painel Agora</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          /* Seleção de Plano e Checkout */
           <div className="space-y-8">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-800 mb-3 shadow-2xs">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                <span>Processamento Seguro com Mercado Pago • SSL 256-bit</span>
+                <span>Pagamento com Mercado Pago • validacao no servidor</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950 tracking-tight">
                 {isRenewal ? 'Renovação da Assinatura' : 'Ative sua Barbearia no IBarbear'}
               </h1>
               <p className="mt-2 text-sm text-neutral-600 max-w-xl mx-auto">
-                Escolha o plano ideal e pague com Mercado Pago (PIX, Cartão de Crédito e Boleto).
+                Escolha o plano ideal. As formas de pagamento disponiveis serao exibidas pelo Mercado Pago.
               </p>
             </div>
-
             {/* Seleção do Plano */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
               {/* Plano Mensal */}
@@ -243,10 +196,9 @@ export const PagamentoPage: React.FC = () => {
                   <span className="text-xs font-medium text-neutral-500">/mês</span>
                 </div>
                 <p className="mt-2 text-xs text-neutral-600">
-                  Renovação mensal sem fidelidade. Cancele quando quiser.
+                  Renovacao mensal conforme as condicoes da assinatura.
                 </p>
               </button>
-
               {/* Plano Anual */}
               <button
                 type="button"
@@ -287,20 +239,18 @@ export const PagamentoPage: React.FC = () => {
                 </p>
               </button>
             </div>
-
             {/* Ação do Checkout com Mercado Pago */}
             <div className="max-w-xl mx-auto rounded-2xl border border-neutral-200 bg-white p-6 sm:p-8 shadow-sm text-center">
               <h2 className="text-base font-bold text-neutral-900 mb-2">
                 Resumo da Assinatura
               </h2>
               <p className="text-xs text-neutral-500 mb-6">
-                Você será redirecionado para o ambiente seguro do Mercado Pago para concluir o pagamento via PIX ou Cartão de Crédito.
+                Quando a contratacao estiver habilitada, voce sera redirecionado ao Mercado Pago para autorizar a assinatura.
               </p>
-
               <button
                 type="button"
                 onClick={handleCheckoutMercadoPago}
-                disabled={loadingPayment}
+                disabled={loadingPayment || checkingPayment || isLocal}
                 className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loadingPayment ? (
@@ -311,33 +261,46 @@ export const PagamentoPage: React.FC = () => {
                 ) : (
                   <>
                     <CreditCard className="h-5 w-5" />
-                    <span>Pagar {currentPlanInfo.priceLabel} com Mercado Pago</span>
+                    <span>Continuar com {currentPlanInfo.priceLabel}</span>
                   </>
                 )}
               </button>
+              <button
+                type="button"
+                onClick={handleVerifyPayment}
+                disabled={loadingPayment || checkingPayment || isLocal}
+                className="mt-3 w-full rounded-xl border border-neutral-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {checkingPayment ? 'Conferindo pagamento...' : 'Ja autorizei o pagamento — Verificar assinatura'}
+              </button>
+              {isLocal && (
+                <p className="mt-3 text-xs text-amber-700">
+                  Checkout real desabilitado em localhost e no Firebase Emulator.
+                </p>
+              )}
+              {paymentMessage && (
+                <p role="status" className="mt-3 text-sm text-neutral-700">{paymentMessage}</p>
+              )}
             </div>
-
             {/* Garantias de Segurança */}
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-neutral-500 py-2">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                <span>Ambiente 100% Seguro</span>
+                <span>Validacao de sessao</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Lock className="h-4 w-4 text-neutral-600" />
-                <span>Criptografia SSL 256-bit</span>
+                <span>Conexao HTTPS</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-amber-500" />
-                <span>Liberação Imediata da Conta</span>
+                <span>Liberacao apos confirmacao</span>
               </div>
             </div>
           </div>
-        )}
       </main>
-
       <footer className="border-t border-neutral-200/90 bg-white py-4 text-center text-xs text-neutral-500">
-        <p>© {new Date().getFullYear()} IBarbear • Processamento seguro Mercado Pago.</p>
+        <p>© {new Date().getFullYear()} IBarbear • Assinatura liberada somente apos pagamento confirmado.</p>
       </footer>
     </div>
   );

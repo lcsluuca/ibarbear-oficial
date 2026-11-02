@@ -1,46 +1,335 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // User profile documents
+
+    // ========================================
+    // AUTENTICACAO
+    // ========================================
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ========================================
+    // SUPER ADMIN
+    // ========================================
+
+    function isSuperAdmin() {
+      return signedIn()
+        && request.auth.token.get('superadmin', false) == true;
+    }
+
+    // ========================================
+    // PROPRIETARIO DA BARBEARIA
+    // ========================================
+
+    function isShopOwner(shopSlug) {
+      return signedIn()
+        && exists(
+          /databases/$(database)/documents/shops/$(shopSlug)
+        )
+        && get(
+          /databases/$(database)/documents/shops/$(shopSlug)
+        ).data.get('ownerUid', '') == request.auth.uid;
+    }
+
+    // ========================================
+    // CAMPOS FINANCEIROS DA BARBEARIA
+    // ========================================
+
+    // Controle de escrita do SDK cliente. Esta lista deve abranger TODOS
+    // os campos lidos pelo frontend/backend para decidir acesso pago.
+    // Se novos campos financeiros forem adicionados ao produto, inclua-os
+    // aqui ANTES de disponibilizar os novos recursos.
+    // OBS: uma lista de bloqueio nao substitui auditoria do schema real.
+
+    function protectedShopFinancialFields() {
+      return [
+        'subscriptionStatus',
+        'subscriptionPlan',
+        'subscriptionId',
+        'subscriptionActive',
+        'isSubscriptionActive',
+        'hasActiveSubscription',
+        'subscriptionStartAt',
+        'subscriptionEndAt',
+        'subscriptionStartDate',
+        'subscriptionEndDate',
+        'subscriptionExpiresAt',
+        'subscriptionExpiryDate',
+        'subscriptionPeriodStart',
+        'subscriptionPeriodEnd',
+        'currentPeriodStart',
+        'currentPeriodEnd',
+        'nextPaymentDate',
+        'paymentStatus',
+        'paymentId',
+        'lastPaymentId',
+        'lastPaymentDate',
+        'lastPaidAt',
+        'isPaid',
+        'paid',
+        'financiallyApproved',
+        'subscriptionActivated',
+        'providerVerified',
+        'providerSubscriptionId',
+        'providerPlanId',
+        'mpSubscriptionId',
+        'mpPreapprovalId',
+        'mercadoPagoSubscriptionId',
+        'mercadoPagoPreapprovalId',
+        'preapprovalId',
+        'plan',
+        'planId',
+        'billing',
+        'financial',
+        'finance',
+        'payment',
+        'payments',
+        'subscription',
+        'subscriptions',
+        'mercadoPago',
+        'mercadoPagoData',
+        'mp',
+        'trialEndsAt',
+        'activeUntil'
+      ];
+    }
+
+    // Permite defaults inofensivos do cadastro inicial, se o frontend os
+    // envia. Nenhum outro campo financeiro pode ser criado pelo cliente.
+    function safeInitialShopFinance() {
+      return request.resource.data.get('subscriptionStatus', 'unpaid') == 'unpaid'
+        && request.resource.data.get('subscriptionPlan', 'monthly') == 'monthly'
+        && !request.resource.data.keys().hasAny(
+          protectedShopFinancialFields().removeAll([
+            'subscriptionStatus',
+            'subscriptionPlan'
+          ])
+        );
+    }
+
+    // ========================================
+    // ETAPA 42 - AUTORIZACAO DAS OPERACOES PAGAS
+    // ========================================
+    // A assinatura e validada em users/{uid}, documento que o proprio
+    // usuario nao pode alterar financeiramente pelas regras da Etapa 38.
+    // O backend confiavel (Admin SDK) deve ser o unico a renovar/ativar.
+    function isPaidShopOwner(shopSlug) {
+      return isShopOwner(shopSlug)
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('shopSlug', '') == shopSlug
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('subscriptionStatus', '') in ['active', 'expiring']
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('subscriptionExpiresAt', '') is string
+        && timestamp.value(
+          get(/databases/$(database)/documents/users/$(request.auth.uid))
+            .data.get('subscriptionExpiresAt', '')
+        ) > request.time;
+    }
+
+    // ========================================
+    // USUARIOS
+    // ========================================
+
     match /users/{userId} {
-      allow read, write: if true;
+
+      allow get: if isSuperAdmin()
+        || (signedIn() && request.auth.uid == userId);
+
+      allow list: if isSuperAdmin();
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.id == userId
+        && request.resource.data.email ==
+          request.auth.token.get('email', '')
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'name',
+          'email',
+          'shopSlug',
+          'subscriptionStatus',
+          'subscriptionPlan'
+        ])
+        && request.resource.data.shopSlug is string
+        && isShopOwner(request.resource.data.shopSlug)
+        && request.resource.data.subscriptionStatus == 'unpaid'
+        && request.resource.data.subscriptionPlan == 'monthly';
+
+      // Usuario altera apenas nome e telefone.
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly([
+            'name',
+            'phone'
+          ]);
+
+      allow delete: if false;
     }
-    
-    // Barbershop profile and settings
+
+    // ========================================
+    // BARBEARIAS
+    // ========================================
+
     match /shops/{shopSlug} {
-      allow read: if true;
-      allow write: if true;
+
+      // Consulta publica pelo slug. ATENCAO: campos financeiros presentes
+      // neste documento tambem podem ser lidos publicamente. Para dados
+      // sigilosos, use documentos privados separados.
+      allow get: if true;
+
+      allow list: if isSuperAdmin();
+
+      // Ninguem via SDK cliente pode criar uma assinatura aprovada na shop.
+      // A criacao com defaults unpaid/monthly continua permitida.
+      allow create: if (
+        isSuperAdmin() || (
+          signedIn()
+          && request.resource.data.slug == shopSlug
+          && request.resource.data.ownerUid == request.auth.uid
+        )
+      ) && safeInitialShopFinance();
+
+      // Proprietario continua editando configuracoes normais da barbearia,
+      // mas nem ele nem o superadmin via SDK cliente mudam campos pagos.
+      // Admin SDK do backend confiavel ignora estas regras.
+      allow update: if (
+        isSuperAdmin() || (
+          isShopOwner(shopSlug)
+          && !request.resource.data.diff(resource.data)
+            .affectedKeys().hasAny([
+              'slug',
+              'ownerUid'
+            ])
+        )
+      ) && !request.resource.data.diff(resource.data)
+        .affectedKeys().hasAny(protectedShopFinancialFields());
+
+      allow delete: if false;
     }
-    
-    // Services catalog
+
+    // ========================================
+    // SERVICOS
+    // ========================================
+
     match /services/{serviceId} {
+
       allow read: if true;
-      allow write: if true;
+
+      allow create: if isSuperAdmin() || (
+        request.resource.data.shopSlug is string
+        && isPaidShopOwner(request.resource.data.shopSlug)
+      );
+
+      allow update: if isSuperAdmin() || (
+        isPaidShopOwner(resource.data.shopSlug)
+        && request.resource.data.shopSlug ==
+          resource.data.shopSlug
+      );
+
+      allow delete: if isSuperAdmin()
+        || isPaidShopOwner(resource.data.shopSlug);
     }
-    
-    // Barbers directory
+
+    // ========================================
+    // BARBEIROS
+    // ========================================
+
     match /barbers/{barberId} {
+
       allow read: if true;
-      allow write: if true;
+
+      allow create: if isSuperAdmin() || (
+        request.resource.data.shopSlug is string
+        && isPaidShopOwner(request.resource.data.shopSlug)
+      );
+
+      allow update: if isSuperAdmin() || (
+        isPaidShopOwner(resource.data.shopSlug)
+        && request.resource.data.shopSlug ==
+          resource.data.shopSlug
+      );
+
+      allow delete: if isSuperAdmin()
+        || isPaidShopOwner(resource.data.shopSlug);
     }
-    
-    // Products and inventory
+
+    // ========================================
+    // PRODUTOS
+    // ========================================
+
     match /products/{productId} {
+
       allow read: if true;
-      allow write: if true;
+
+      allow create: if isSuperAdmin() || (
+        request.resource.data.shopSlug is string
+        && isPaidShopOwner(request.resource.data.shopSlug)
+      );
+
+      allow update: if isSuperAdmin() || (
+        isPaidShopOwner(resource.data.shopSlug)
+        && request.resource.data.shopSlug ==
+          resource.data.shopSlug
+      );
+
+      allow delete: if isSuperAdmin()
+        || isPaidShopOwner(resource.data.shopSlug);
     }
-    
-    // Customer Bookings
+
+    // ========================================
+    // AGENDAMENTOS
+    // ========================================
+
     match /bookings/{bookingId} {
-      allow read: if true;
-      allow write: if true;
+
+      allow get, list: if isSuperAdmin()
+        || isPaidShopOwner(resource.data.shopSlug);
+
+      allow create: if isSuperAdmin() || (
+        request.resource.data.shopSlug is string
+        && isPaidShopOwner(request.resource.data.shopSlug)
+        && request.resource.data.status == 'pending'
+      );
+
+      allow update: if isSuperAdmin() || (
+        isPaidShopOwner(resource.data.shopSlug)
+        && request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in [
+          'pending',
+          'confirmed',
+          'done',
+          'canceled'
+        ]
+      );
+
+      allow delete: if isSuperAdmin()
+        || isPaidShopOwner(resource.data.shopSlug);
     }
-    
-    // PIX Subscription Payments
+
+    // ========================================
+    // PAGAMENTOS
+    // ========================================
+
     match /payments/{paymentId} {
-      allow read: if true;
-      allow write: if true;
+
+      allow get, list: if isSuperAdmin() || (
+        signedIn()
+        && resource.data.userId == request.auth.uid
+      );
+
+      allow create, update, delete: if false;
     }
+
+    // ========================================
+    // DEMAIS COLECOES
+    // ========================================
+    // Colecoes nao declaradas permanecem bloqueadas para SDK cliente.
   }
 }

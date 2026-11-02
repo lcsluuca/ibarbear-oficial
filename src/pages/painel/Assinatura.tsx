@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { PanelShell } from '../../components/panel/PanelShell';
 import {
-  getCurrentUser,
   getSubscriptionInfo,
   getUserPayments,
   formatCurrency,
 } from '../../lib/storage';
-import { PaymentRecord, User } from '../../types';
+import { BarberShop, PaymentRecord, User } from '../../types';
 import {
   CreditCard,
   Zap,
@@ -21,8 +20,8 @@ import {
 } from 'lucide-react';
 
 export const PainelAssinatura: React.FC = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(getCurrentUser());
+  // IBARBEAR_ETAPA41: somente o perfil verificado pelo ProtectedRoute.
+  const { user } = useOutletContext<{ user: User; shop: BarberShop }>();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -32,25 +31,23 @@ export const PainelAssinatura: React.FC = () => {
   const canRenew = subInfo.isExpired || subInfo.isExpiringSoon || subInfo.status === 'unpaid';
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-      return;
-    }
+    let canceled = false;
+    setLoading(true);
+    setPayments([]); // Nao mostrar historico de outro usuario durante troca de sessao.
 
-    const loadPayments = async () => {
-      setLoading(true);
-      try {
-        const history = await getUserPayments(user.id);
-        setPayments(history);
-      } catch (err) {
-        console.error('Erro ao carregar histórico de pagamentos:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    getUserPayments(user.id)
+      .then((history) => {
+        if (!canceled) setPayments(history);
+      })
+      .catch((err) => {
+        if (!canceled) console.error('Historico indisponivel:', err);
+      })
+      .finally(() => {
+        if (!canceled) setLoading(false);
+      });
 
-    loadPayments();
-  }, [user?.id, navigate]);
+    return () => { canceled = true; };
+  }, [user.id]);
 
   const getStatusBadge = () => {
     if (subInfo.isExpired || subInfo.status === 'unpaid') {

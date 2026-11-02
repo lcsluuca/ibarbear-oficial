@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  getCountFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -14,8 +15,10 @@ import {
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  getIdTokenResult,
   signOut,
 } from 'firebase/auth';
+
 import { db, auth } from './firebase';
 import {
   BarberShop,
@@ -277,22 +280,8 @@ export const DEFAULT_USER: User = {
   subscriptionExpiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
 };
 
-export const DEFAULT_PAYMENTS: PaymentRecord[] = [
-  {
-    id: 'pay-demo-01',
-    userId: 'usr-demo-01',
-    shopSlug: 'navalha',
-    userEmail: 'lucas@barbearianavalha.com.br',
-    userName: 'Lucas Silva',
-    amount: 8900,
-    plan: 'monthly',
-    status: 'approved',
-    pixCode: '00020126580014BR.GOV.BCB.PIX0136pix@ibarbear.com.br520400005303986540589.005802BR5915IBARBEAR 6009SAO PAULO62140510IBARBEAR016304C1B4',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+export const DEFAULT_PAYMENTS: PaymentRecord[] = [];
+// IBARBEAR_ETAPA40: pagamento aprovado demonstrativo removido da inicialização.
 
 // Storage Keys for Cache
 const KEYS = {
@@ -327,9 +316,7 @@ function initStorage() {
   if (!localStorage.getItem(KEYS.REGISTERED_USERS)) {
     localStorage.setItem(KEYS.REGISTERED_USERS, JSON.stringify([DEFAULT_USER]));
   }
-  if (!localStorage.getItem(KEYS.PAYMENTS)) {
-    localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(DEFAULT_PAYMENTS));
-  }
+  // IBARBEAR_ETAPA40: não popular histórico financeiro com pagamentos de demonstração.
 }
 
 try {
@@ -356,7 +343,9 @@ export function sanitizeForFirestore<T extends Record<string, any>>(data: T): Re
 // -------------------------------------------------------------
 let isSeeding = false;
 export async function ensureFirestoreSeeded(shopSlug = 'navalha') {
-  if (isSeeding) return;
+    // IBARBEAR_ETAPA40: seed só pode ser invocado explicitamente no modo emulator.
+  if (!import.meta.env.DEV || import.meta.env.MODE !== 'emulator') return;
+if (isSeeding) return;
   isSeeding = true;
   try {
     const shopRef = doc(db, 'shops', shopSlug);
@@ -390,11 +379,7 @@ export async function ensureFirestoreSeeded(shopSlug = 'navalha') {
   }
 }
 
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    ensureFirestoreSeeded('navalha');
-  }, 500);
-}
+// IBARBEAR_ETAPA40: inicialização automática do seed removida. Dados demo somente em fluxo explicitamente de teste.
 
 // -------------------------------------------------------------
 // REAL-TIME FIRESTORE SUBSCRIPTIONS
@@ -1041,152 +1026,104 @@ export function setCurrentUser(user: User | null): void {
 }
 
 export async function loginUser(email: string, password?: string): Promise<User> {
-  initStorage();
   const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = (password || '').trim();
 
-  if (!cleanPassword || cleanPassword.length < 6) {
-    throw new Error('A senha deve conter pelo menos 6 caracteres.');
+  if (!cleanEmail || !password) {
+    throw new Error('Informe seu e-mail e sua senha.');
   }
 
-  const inputHash = await hashPassword(cleanPassword);
+  await auth.authStateReady();
 
-  if (cleanEmail === 'lucas@barbearianavalha.com.br') {
-    if (cleanPassword !== '123456') {
-      throw new Error('Senha incorreta para a conta demonstrativa. A senha padrão de teste é: 123456');
-    }
-
-    try {
-      const userCred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      const userDocSnap = await getDoc(doc(db, 'users', userCred.user.uid));
-      if (userDocSnap.exists()) {
-        const u = userDocSnap.data() as User;
-        setCurrentUser(u);
-        return u;
-      }
-    } catch (authErr: any) {
-      if (authErr?.code === 'auth/user-not-found' || authErr?.code === 'auth/invalid-credential') {
-        try {
-          const newCred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-          const demoUser: User = {
-            id: newCred.user.uid,
-            name: 'Lucas Silva',
-            email: cleanEmail,
-            shopSlug: 'navalha',
-            passwordHash: inputHash,
-          };
-          await setDoc(doc(db, 'users', demoUser.id), sanitizeForFirestore(demoUser));
-          setCurrentUser(demoUser);
-          return demoUser;
-        } catch {
-          // Fallback
-        }
-      }
-    }
-
-    const demoUser: User = {
-      id: 'usr-demo-01',
-      name: 'Lucas Silva',
-      email: cleanEmail,
-      shopSlug: 'navalha',
-      passwordHash: inputHash,
-    };
-    setCurrentUser(demoUser);
-    return demoUser;
+  if (auth.currentUser) {
+    await signOut(auth);
   }
+
+  setCurrentUser(null);
 
   try {
-    const userCred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-    const userDocSnap = await getDoc(doc(db, 'users', userCred.user.uid));
+    const credential = await signInWithEmailAndPassword(
+      auth,
+      cleanEmail,
+      password
+    );
 
-    if (userDocSnap.exists()) {
-      const u = userDocSnap.data() as User;
-      if (u.passwordHash && u.passwordHash !== inputHash) {
-        throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
-      }
-      setCurrentUser(u);
-      return u;
+    const firebaseUser = credential.user;
+
+    const [userSnapshot, tokenResult] = await Promise.all([
+      getDoc(doc(db, 'users', firebaseUser.uid)),
+      getIdTokenResult(firebaseUser)
+    ]);
+
+    const isSuperAdmin = tokenResult.claims.superadmin === true;
+
+    let authenticatedUser: User;
+
+    if (userSnapshot.exists()) {
+      const profile = userSnapshot.data() as User;
+
+      authenticatedUser = {
+        ...profile,
+        id: firebaseUser.uid,
+        email: firebaseUser.email || cleanEmail
+      };
+
+    } else if (isSuperAdmin) {
+      authenticatedUser = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || 'Administrador',
+        email: firebaseUser.email || cleanEmail,
+        shopSlug: ''
+      };
+
+    } else {
+      throw new Error(
+        'Conta autenticada, mas o perfil nao foi encontrado. ' +
+        'Entre em contato com o suporte.'
+      );
     }
 
-    const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const u = snap.docs[0].data() as User;
-      if (u.passwordHash && u.passwordHash !== inputHash) {
-        throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
-      }
-      setCurrentUser(u);
-      return u;
-    }
+    delete authenticatedUser.passwordHash;
 
-    const fallbackUser: User = {
-      id: userCred.user.uid,
-      name: cleanEmail.split('@')[0],
-      email: cleanEmail,
-      shopSlug: 'navalha',
-      passwordHash: inputHash,
-    };
-    await setDoc(doc(db, 'users', fallbackUser.id), sanitizeForFirestore(fallbackUser));
-    setCurrentUser(fallbackUser);
-    return fallbackUser;
-  } catch (authErr: any) {
-    const code = authErr?.code || '';
+    setCurrentUser(authenticatedUser);
 
-    if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-      throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
-    }
+    return authenticatedUser;
 
-    if (code === 'auth/user-not-found') {
-      try {
-        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const u = snap.docs[0].data() as User;
-          if (u.passwordHash && u.passwordHash !== inputHash) {
-            throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
-          }
-          try {
-            await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-          } catch {
-            // Safe
-          }
-          setCurrentUser(u);
-          return u;
-        }
-      } catch (fsErr: any) {
-        if (fsErr?.message?.includes('E-mail ou senha incorretos')) {
-          throw fsErr;
-        }
-      }
+  } catch (error: any) {
+    setCurrentUser(null);
 
-      const registered = getRegisteredUsers();
-      const found = registered.find((u) => u.email.toLowerCase() === cleanEmail);
-      if (found) {
-        if (found.passwordHash && found.passwordHash !== inputHash) {
-          throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
-        }
-        setCurrentUser(found);
-        return found;
-      }
+    await signOut(auth).catch(console.warn);
 
-      throw new Error('Nenhuma conta cadastrada com este e-mail. Por favor, crie sua conta na aba "Cadastrar".');
+    const code = error?.code || '';
+
+    if (
+      code === 'auth/invalid-credential' ||
+      code === 'auth/wrong-password' ||
+      code === 'auth/user-not-found'
+    ) {
+      throw new Error('E-mail ou senha incorretos.');
     }
 
     if (code === 'auth/invalid-email') {
-      throw new Error('O formato do e-mail informado é inválido.');
+      throw new Error('Informe um e-mail valido.');
     }
+
     if (code === 'auth/too-many-requests') {
-      throw new Error('Acesso bloqueado temporariamente devido a muitas tentativas inválidas. Aguarde alguns minutos.');
+      throw new Error(
+        'Muitas tentativas de acesso. Tente novamente mais tarde.'
+      );
     }
+
     if (code === 'auth/user-disabled') {
-      throw new Error('Esta conta foi desativada pelo administrador.');
+      throw new Error('Esta conta foi desativada.');
     }
 
-    if (authErr instanceof Error && authErr.message) {
-      throw authErr;
+    if (error instanceof Error && !code) {
+      throw error;
     }
 
-    throw new Error('E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.');
+    throw new Error(
+      'Nao foi possivel autenticar sua conta. Tente novamente.'
+    );
   }
 }
 
@@ -1204,7 +1141,8 @@ export async function registerUser(
     throw new Error('A senha deve ter no mínimo 6 caracteres.');
   }
 
-  const passwordHash = await hashPassword(cleanPassword);
+  // A senha é validada pelo Firebase Authentication.
+  // Não salvar hash de senha no documento de usuário.
 
   const existingLocal = getRegisteredUsers().find((u) => u.email.toLowerCase() === cleanEmail);
   if (existingLocal && cleanEmail !== 'lucas@barbearianavalha.com.br') {
@@ -1241,6 +1179,7 @@ export async function registerUser(
     id: `shop-${Date.now()}`,
     name: shopName,
     slug: finalSlug,
+    ownerUid: userId, // vínculo com o UID REAL do Firebase Authentication
     tagline: 'Barbearia moderna com agendamento online',
     phone: '(11) 99999-9999',
     whatsapp: '(11) 99999-9999',
@@ -1257,48 +1196,15 @@ export async function registerUser(
   saveShop(newShop);
   await setDoc(doc(db, 'shops', finalSlug), sanitizeForFirestore(newShop));
 
-  const srv1: Service = {
-    id: `srv-${Date.now()}-1`,
-    shopSlug: finalSlug,
-    name: 'Corte de Cabelo',
-    price: 4500,
-    durationMinutes: 40,
-    description: 'Corte tradicional ou degradê moderno',
-    active: true,
-  };
-  const srv2: Service = {
-    id: `srv-${Date.now()}-2`,
-    shopSlug: finalSlug,
-    name: 'Barba Completa',
-    price: 3500,
-    durationMinutes: 30,
-    description: 'Alinhamento e hidratação da barba',
-    active: true,
-  };
-
-  saveService(srv1);
-  saveService(srv2);
-  await setDoc(doc(db, 'services', srv1.id), sanitizeForFirestore(srv1));
-  await setDoc(doc(db, 'services', srv2.id), sanitizeForFirestore(srv2));
-
-  const barb1: Barber = {
-    id: `barb-${Date.now()}-1`,
-    shopSlug: finalSlug,
-    name: name,
-    specialty: 'Barbeiro Principal',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    workingHours: '09:00 - 19:00',
-    active: true,
-  };
-  saveBarber(barb1);
-  await setDoc(doc(db, 'barbers', barb1.id), sanitizeForFirestore(barb1));
+  // IBARBEAR_ETAPA42: cadastro unpaid cria somente shop e perfil.
+  // Servicos e barbeiros serao configurados pelo proprietario apos ativacao
+  // financeira validada no backend (nao criar via SDK durante signup).
 
   const newUser: User = {
     id: userId,
     name,
     email: cleanEmail,
     shopSlug: finalSlug,
-    passwordHash,
     subscriptionStatus: 'unpaid',
     subscriptionPlan: 'monthly',
   };
@@ -1408,16 +1314,13 @@ export function generatePixPayload(params: {
 }
 
 export function getLocalPayments(): PaymentRecord[] {
-  initStorage();
-  const raw = localStorage.getItem(KEYS.PAYMENTS);
-  return raw ? JSON.parse(raw) : DEFAULT_PAYMENTS;
+  // IBARBEAR_ETAPA40: nunca usar dados financeiros do navegador como fonte.
+  return [];
 }
 
-export function saveLocalPayment(payment: PaymentRecord): void {
-  initStorage();
-  const list = getLocalPayments().filter((p) => p.id !== payment.id);
-  const updated = [payment, ...list];
-  localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(updated));
+export function saveLocalPayment(_payment: PaymentRecord): void {
+  // IBARBEAR_ETAPA40: histórico financeiro precisa ser gravado pelo backend.
+  throw new Error('Registro local de pagamentos desativado.');
 }
 
 export function getSubscriptionInfo(user: User | null): {
@@ -1443,7 +1346,12 @@ export function getSubscriptionInfo(user: User | null): {
     };
   }
 
-  if (user.subscriptionStatus === 'unpaid' || !user.subscriptionExpiresAt) {
+  // IBARBEAR_ETAPA41: status nao autorizado ou data invalida nunca liberam painel.
+  if (
+    (user.subscriptionStatus !== 'active' && user.subscriptionStatus !== 'expiring') ||
+    !user.subscriptionExpiresAt ||
+    !Number.isFinite(new Date(user.subscriptionExpiresAt).getTime())
+  ) {
     return {
       status: 'unpaid',
       isLocked: true,
@@ -1506,190 +1414,41 @@ export function getSubscriptionInfo(user: User | null): {
 }
 
 export async function createPixPayment(
-  user: User,
-  plan: SubscriptionPlan = 'monthly'
+  _user: User,
+  _plan: SubscriptionPlan = 'monthly'
 ): Promise<PaymentRecord> {
-  initStorage();
-  const planInfo = PLAN_PRICING[plan];
-  const paymentId = `PIX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const now = new Date();
-
-  const currentExpiresAt = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null;
-  const baseDate = currentExpiresAt && currentExpiresAt.getTime() > now.getTime() ? currentExpiresAt : now;
-  const targetExpiresDate = new Date(baseDate.getTime() + planInfo.days * 24 * 60 * 60 * 1000);
-
-  const pixCode = generatePixPayload({
-    key: OFFICIAL_PIX_KEY,
-    name: 'IBARBEAR',
-    city: 'SAO PAULO',
-    amount: planInfo.priceCents / 100,
-    txId: paymentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20),
-  });
-
-  const payment: PaymentRecord = {
-    id: paymentId,
-    userId: user.id,
-    shopSlug: user.shopSlug,
-    userEmail: user.email,
-    userName: user.name,
-    amount: planInfo.priceCents,
-    plan,
-    status: 'pending',
-    pixCode,
-    createdAt: now.toISOString(),
-    expiresAt: targetExpiresDate.toISOString(),
-  };
-
-  saveLocalPayment(payment);
-
-  try {
-    await setDoc(doc(db, 'payments', payment.id), sanitizeForFirestore(payment));
-  } catch (err) {
-    console.warn('Firestore payment save error:', err);
-  }
-
-  return payment;
+  throw new Error(
+    'Pix legado desativado. Utilize o checkout oficial do IBARBEAR.'
+  );
 }
-
 export async function confirmPixPayment(
-  paymentId: string,
-  extraDetails?: {
+  _paymentId: string,
+  _extraDetails?: {
     e2eId?: string;
     bankName?: string;
     receiptUrl?: string;
     verificationMethod?: PaymentRecord['verificationMethod'];
   }
 ): Promise<{ payment: PaymentRecord; user: User }> {
-  initStorage();
-  let payment = getLocalPayments().find((p) => p.id === paymentId);
-
-  if (!payment) {
-    try {
-      const snap = await getDoc(doc(db, 'payments', paymentId));
-      if (snap.exists()) {
-        payment = snap.data() as PaymentRecord;
-      }
-    } catch {
-      // Safe
-    }
-  }
-
-  if (!payment) {
-    throw new Error('Transação PIX não encontrada.');
-  }
-
-  const now = new Date().toISOString();
-  payment.status = 'approved';
-  payment.paidAt = now;
-  if (extraDetails?.e2eId) payment.e2eId = extraDetails.e2eId;
-  if (extraDetails?.bankName) payment.bankName = extraDetails.bankName;
-  if (extraDetails?.receiptUrl) payment.receiptUrl = extraDetails.receiptUrl;
-  if (extraDetails?.verificationMethod) payment.verificationMethod = extraDetails.verificationMethod;
-
-  saveLocalPayment(payment);
-
-  try {
-    await setDoc(doc(db, 'payments', payment.id), sanitizeForFirestore(payment));
-  } catch {
-    // Safe
-  }
-
-  const currentUser = getCurrentUser();
-  const userId = payment.userId;
-  let targetUser = currentUser && currentUser.id === userId ? currentUser : null;
-
-  if (!targetUser) {
-    targetUser = getRegisteredUsers().find((u) => u.id === userId) || null;
-  }
-
-  if (!targetUser && currentUser) {
-    targetUser = currentUser;
-  }
-
-  if (!targetUser) {
-    throw new Error('Usuário não localizado para ativação do plano.');
-  }
-
-  const updatedUser: User = {
-    ...targetUser,
-    subscriptionStatus: 'active',
-    subscriptionPlan: payment.plan,
-    subscriptionExpiresAt: payment.expiresAt,
-    lastPaymentId: payment.id,
-  };
-
-  const registered = getRegisteredUsers().map((u) =>
-    u.id === updatedUser.id || u.email.toLowerCase() === updatedUser.email.toLowerCase()
-      ? updatedUser
-      : u
+  throw new Error(
+    'Pagamento pendente de validacao. ' +
+    'Somente o servidor pode confirmar o pagamento ' +
+    'apos verificar a transacao com o provedor.'
   );
-  localStorage.setItem(KEYS.REGISTERED_USERS, JSON.stringify(registered));
-
-  if (currentUser && (currentUser.id === updatedUser.id || currentUser.email === updatedUser.email)) {
-    setCurrentUser(updatedUser);
-  }
-
-  try {
-    await setDoc(doc(db, 'users', updatedUser.id), sanitizeForFirestore(updatedUser));
-  } catch (err) {
-    console.warn('Could not sync user to Firestore:', err);
-  }
-
-  return { payment, user: updatedUser };
 }
 
 export async function createSubscriptionPayment(
-  user: User,
-  plan: SubscriptionPlan = 'monthly',
-  method: PaymentMethodType = 'pix'
+  _user: User,
+  _plan: SubscriptionPlan = 'monthly',
+  _method: PaymentMethodType = 'pix'
 ): Promise<PaymentRecord> {
-  initStorage();
-  const planInfo = PLAN_PRICING[plan];
-  const paymentId = `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const now = new Date();
-
-  const currentExpiresAt = user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt) : null;
-  const baseDate = currentExpiresAt && currentExpiresAt.getTime() > now.getTime() ? currentExpiresAt : now;
-  const targetExpiresDate = new Date(baseDate.getTime() + planInfo.days * 24 * 60 * 60 * 1000);
-
-  const pixCode = generatePixPayload({
-    key: OFFICIAL_PIX_KEY,
-    name: 'IBARBEAR',
-    city: 'SAO PAULO',
-    amount: planInfo.priceCents / 100,
-    txId: paymentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20),
-  });
-
-  const payment: PaymentRecord = {
-    id: paymentId,
-    userId: user.id,
-    shopSlug: user.shopSlug,
-    userEmail: user.email,
-    userName: user.name,
-    amount: planInfo.priceCents,
-    plan,
-    status: 'pending',
-    paymentMethod: method,
-    gateway: 'gateway',
-    pixCode,
-    createdAt: now.toISOString(),
-    expiresAt: targetExpiresDate.toISOString(),
-  };
-
-  saveLocalPayment(payment);
-
-  try {
-    await setDoc(doc(db, 'payments', payment.id), sanitizeForFirestore(payment));
-  } catch (err) {
-    console.warn('Firestore payment save error:', err);
-  }
-
-  return payment;
+  throw new Error(
+    'Pagamento legado desativado. Utilize o checkout oficial do IBARBEAR.'
+  );
 }
-
 export async function processCardPayment(
-  paymentId: string,
-  cardData: {
+  _paymentId: string,
+  _cardData: {
     number: string;
     holderName: string;
     expiry: string;
@@ -1697,83 +1456,24 @@ export async function processCardPayment(
     installments: number;
     cpf?: string;
   },
-  plan: SubscriptionPlan,
-  user: User
-): Promise<{ success: boolean; message: string; payment?: PaymentRecord; user?: User }> {
-  const planInfo = PLAN_PRICING[plan];
-
-  try {
-    const cleanNumber = String(cardData.number || '').replace(/\D/g, '');
-    let brand = 'Mastercard';
-    if (/^4/.test(cleanNumber)) brand = 'Visa';
-    else if (/^(5[1-5]|2[2-7])/.test(cleanNumber)) brand = 'Mastercard';
-    else if (/^3[47]/.test(cleanNumber)) brand = 'American Express';
-    else if (/^(606282|3841|636368|636297|5067|4576|4011)/.test(cleanNumber)) brand = 'Elo';
-    else if (/^(60|3841)/.test(cleanNumber)) brand = 'Hipercard';
-
-    let transactionAuthId = `CARD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-
-    try {
-      const res = await fetch('/api/card/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentId,
-          plan,
-          amount: planInfo.priceCents,
-          cardData: {
-            ...cardData,
-            number: cleanNumber,
-          },
-          user: { id: user.id, name: user.name, email: user.email, shopSlug: user.shopSlug },
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.transactionId) transactionAuthId = data.transactionId;
-      }
-    } catch {
-      // Fallback local
-    }
-
-    const confirmResult = await confirmPixPayment(paymentId, {
-      e2eId: transactionAuthId,
-      bankName: `Mercado Pago (${brand})`,
-      verificationMethod: 'card_checkout',
-    });
-
-    const updatedPayment: PaymentRecord = {
-      ...confirmResult.payment,
-      paymentMethod: 'credit_card',
-      gateway: 'gateway',
-      cardBrand: brand,
-      cardLast4: cleanNumber.slice(-4),
-      cardInstallments: Number(cardData.installments) || 1,
-    };
-
-    saveLocalPayment(updatedPayment);
-
-    try {
-      await setDoc(doc(db, 'payments', updatedPayment.id), sanitizeForFirestore(updatedPayment));
-    } catch {
-      // Safe
-    }
-
-    return {
-      success: true,
-      message: 'Pagamento no cartão aprovado com sucesso!',
-      payment: updatedPayment,
-      user: confirmResult.user,
-    };
-  } catch (err: any) {
-    throw err;
-  }
+  _plan: SubscriptionPlan,
+  _user: User
+): Promise<{
+  success: boolean;
+  message: string;
+  payment?: PaymentRecord;
+  user?: User;
+}> {
+  throw new Error(
+    'Pagamento com cartao temporariamente indisponivel. ' +
+    'Aguarde a integracao com o checkout seguro.'
+  );
 }
 
 export async function getUserPayments(userId: string): Promise<PaymentRecord[]> {
-  initStorage();
-  const local = getLocalPayments().filter((p) => p.userId === userId);
+  // IBARBEAR_ETAPA40: somente usuário Firebase autenticado pode consultar o próprio histórico.
+  await auth.authStateReady();
+  if (!auth.currentUser || auth.currentUser.uid !== userId) return [];
 
   try {
     const q = query(
@@ -1782,19 +1482,98 @@ export async function getUserPayments(userId: string): Promise<PaymentRecord[]> 
       orderBy('createdAt', 'desc')
     );
     const snap = await getDocs(q);
-    if (!snap.empty) {
-      const fsPayments = snap.docs.map((d) => d.data() as PaymentRecord);
-      const mergedMap = new Map<string, PaymentRecord>();
-      [...fsPayments, ...local].forEach((p) => mergedMap.set(p.id, p));
-      const sorted = Array.from(mergedMap.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(sorted));
-      return sorted;
-    }
-  } catch {
-    // Safe
+    return snap.docs.map((d) => d.data() as PaymentRecord);
+  } catch (err) {
+    // Falhar fechado: nunca usar localStorage no lugar de registros do servidor.
+    console.warn('Historico financeiro indisponivel:', err);
+    return [];
   }
+}
 
-  return local.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+// -------------------------------------------------------------
+// SUPER ADMIN: CONSULTA CONSOLIDADA DE BARBEARIAS
+// -------------------------------------------------------------
+// Colar no FINAL de src/lib/storage.ts.
+// Adicionar getCountFromServer ao import de 'firebase/firestore'.
+
+export interface ShopAdminView {
+  id: string;
+  shopName: string;
+  shopSlug: string;
+  plan: 'free_trial' | 'monthly' | 'annual';
+  subscriptionStatus: 'active' | 'unpaid' | 'canceled' | 'trialing' | 'expiring' | 'expired';
+  registeredAt: string;
+  totalBookingsCount?: number;
+}
+
+function getAdminSubscriptionStatus(user: User | undefined): ShopAdminView['subscriptionStatus'] {
+  if (!user) return 'unpaid';
+
+  // O método getSubscriptionInfo() já calcula vencimento e proximidade da expiração.
+  const originalStatus = String(user.subscriptionStatus || '');
+  if (originalStatus === 'canceled') return 'canceled';
+  if (originalStatus === 'trialing') return 'trialing';
+
+  const calculated = getSubscriptionInfo(user).status;
+  if (calculated === 'active') return 'active';
+  if (calculated === 'expiring') return 'expiring';
+  if (calculated === 'expired') return 'expired';
+  return 'unpaid';
+}
+
+export async function getAdminShopsAsync(): Promise<ShopAdminView[]> {
+  // A consulta às coleções completas requer regras do Firestore que autorizem
+  // apenas um Super Admin ver os dados globais da plataforma.
+  const [shopsSnapshot, usersSnapshot] = await Promise.all([
+    getDocs(collection(db, 'shops')),
+    getDocs(collection(db, 'users')),
+  ]);
+
+  const users = usersSnapshot.docs.map((item) => item.data() as User);
+
+  const shops = await Promise.all(
+    shopsSnapshot.docs.map(async (item): Promise<ShopAdminView> => {
+      const shop = item.data() as BarberShop;
+      const slug = shop.slug || item.id;
+
+      // O cadastro usa o e-mail da barbearia para identificar seu titular.
+      const owner =
+        users.find(
+          (user) =>
+            user.shopSlug === slug &&
+            user.email?.toLowerCase() === shop.email?.toLowerCase()
+        ) ??
+        users.find((user) => user.shopSlug === slug && !!user.subscriptionPlan) ??
+        users.find((user) => user.shopSlug === slug);
+
+      const originalPlan = owner?.subscriptionPlan;
+      const plan: ShopAdminView['plan'] =
+        originalPlan === 'yearly' ? 'annual' : 'monthly';
+
+      let totalBookingsCount: number | undefined;
+      try {
+        // Lê apenas a contagem agregada, sem carregar dados pessoais dos agendamentos.
+        const countSnapshot = await getCountFromServer(
+          query(collection(db, 'bookings'), where('shopSlug', '==', slug))
+        );
+        totalBookingsCount = countSnapshot.data().count;
+      } catch (error) {
+        // Se a permissão de agregação estiver ausente, a lista ainda será exibida.
+        console.warn(`Não foi possível contar agendamentos de ${slug}:`, error);
+      }
+
+      return {
+        id: shop.id || item.id,
+        shopName: shop.name || 'Barbearia sem nome',
+        shopSlug: slug,
+        plan,
+        subscriptionStatus: getAdminSubscriptionStatus(owner),
+        registeredAt: shop.createdAt || '',
+        totalBookingsCount,
+      };
+    })
+  );
+
+  // Lista os cadastros mais recentes primeiro.
+  return shops.sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
 }

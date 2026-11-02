@@ -7,6 +7,9 @@ export interface BarberShop {
   id: string;
   name: string;
   slug: string;
+  // UID do proprietário no Firebase Authentication.
+  // Opcional temporariamente para barbearias antigas; tornar obrigatório após a migração.
+  ownerUid?: string;
   tagline: string;
   phone: string;
   whatsapp: string;
@@ -16,7 +19,7 @@ export interface BarberShop {
   hours: OpeningHour[];
   bannerUrl?: string;
   logoUrl?: string;
-  showProductsOnBookingPage?: boolean; // Controls whether products showcase is visible on public booking page
+  showProductsOnBookingPage?: boolean;
   createdAt: string;
 }
 
@@ -24,14 +27,14 @@ export interface Product {
   id: string;
   shopSlug: string;
   name: string;
-  price: number; // in cents (e.g. 4500 = R$ 45,00)
-  category: string; // e.g. 'Pomadas & Ceras', 'Barba & Bigode', 'Tratamento & Cuidados', 'Acessórios'
+  price: number; // Em centavos
+  category: string;
   description: string;
   imageUrl?: string;
   stockQuantity: number;
   minStockAlert?: number;
-  active: boolean; // Is active for sale
-  showInCatalog: boolean; // Visible in public shop catalog
+  active: boolean;
+  showInCatalog: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -40,7 +43,7 @@ export interface Service {
   id: string;
   shopSlug: string;
   name: string;
-  price: number; // in cents (e.g. 4500 = R$ 45,00)
+  price: number; // Em centavos
   durationMinutes: number;
   description: string;
   active: boolean;
@@ -70,8 +73,8 @@ export interface Booking {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string;
+  time: string;
   notes?: string;
   status: BookingStatus;
   createdAt: string;
@@ -87,7 +90,7 @@ export interface PaymentRecord {
   shopSlug: string;
   userEmail: string;
   userName: string;
-  amount: number; // in cents (e.g. 8900 = R$ 89,00)
+  amount: number;
   plan: SubscriptionPlan;
   status: 'pending' | 'approved' | 'expired';
   paymentMethod?: PaymentMethodType;
@@ -99,10 +102,10 @@ export interface PaymentRecord {
   cardInstallments?: number;
   createdAt: string;
   paidAt?: string;
-  expiresAt: string; // Subscription expiration date granted by this payment
-  e2eId?: string; // End-to-end ID from central bank/receipt (e.g. E004169682026...)
-  bankName?: string; // Originating bank
-  receiptUrl?: string; // Receipt attachment data URL
+  expiresAt: string;
+  e2eId?: string;
+  bankName?: string;
+  receiptUrl?: string;
   verificationMethod?: 'webhook' | 'receipt_auth' | 'manual' | 'radar_sync' | 'card_checkout';
 }
 
@@ -111,10 +114,12 @@ export interface User {
   name: string;
   email: string;
   shopSlug: string;
+  // Campo legado, mantido apenas para compatibilidade de tipos.
+  // Nunca gravar novos hashes no Firestore; autenticar somente pelo Firebase Auth.
   passwordHash?: string;
   subscriptionStatus?: SubscriptionStatus;
   subscriptionPlan?: SubscriptionPlan;
-  subscriptionExpiresAt?: string; // ISO date
+  subscriptionExpiresAt?: string;
   lastPaymentId?: string;
 }
 
